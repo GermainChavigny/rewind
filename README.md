@@ -25,6 +25,7 @@ Requirements: [uv](https://docs.astral.sh/uv/) (Python 3.11+) — Linux or macOS
 cd backend
 uv sync
 uv run pytest
+# from the repo root, everything the CI checks: scripts/check.sh
 uv run rewind serve          # http://localhost:8080/api/health
 ```
 

@@ -1,9 +1,10 @@
 name: CI
 
+# Manual only while in active development (saves Actions minutes):
+# run it from the GitHub "Actions" tab, or `gh workflow run CI`.
+# Locally, `scripts/check.sh` runs the same checks for free.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   backend:
