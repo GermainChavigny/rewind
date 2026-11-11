@@ -69,6 +69,8 @@
   .screen {
     position: absolute;
     inset: 0;
+    z-index: 20;
+    pointer-events: auto;
     display: flex;
     flex-direction: column;
     background: var(--crt-bg);

@@ -34,6 +34,8 @@ class Tv {
 
   current = $state<Channel | null>(null);
   intro = $state(true);
+  /** The YouTube channel is paused (the channel grid then stays on screen). */
+  paused = $state(false);
   gridVisible = $state(false);
   darkness = $state(0);
   volume = $state(100);
@@ -48,7 +50,7 @@ class Tv {
   now = $state(new Date());
 
   private keys = new Map<string, Action>();
-  private youtube: YouTubeChannel | null = null;
+  youtube: YouTubeChannel | null = null;
   private timers: Record<string, ReturnType<typeof setTimeout>> = {};
   private lastAlarmMinute: string | null = null;
   private stopRinging: (() => void) | null = null;
@@ -102,6 +104,7 @@ class Tv {
         this.showDifficulty('difficulties.video', 3000);
         setTimeout(() => this.youtube?.next(), 1500);
       },
+      onPausedChange: (paused) => (this.paused = paused),
     });
   }
 

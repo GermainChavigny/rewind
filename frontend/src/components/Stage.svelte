@@ -27,9 +27,9 @@
     left: 0;
     top: 0;
     transform-origin: 0 0;
-    pointer-events: none; /* children opt in */
-  }
-  .stage > :global(*) {
-    pointer-events: auto;
+    /* Not clickable by default (pointer-events is inherited): each interactive
+       layer opts in with pointer-events: auto, and only while it is visible —
+       hidden layers must never catch clicks. */
+    pointer-events: none;
   }
 </style>

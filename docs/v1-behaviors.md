@@ -70,6 +70,10 @@ turns the TV on through the plug and plays the alarm channel.
 - [ ] Per-channel flags: `noSave` (e.g. News always starts fresh), `isAlarm`
       (the alarm channel).
 - [ ] Preferred quality `hd720`.
+- [x] YouTube quirk: loading a playlist while another plays can keep playing a
+      video of the OLD playlist (one-channel lag). v1 worked around it with
+      `stopVideo()` + a delay before `loadPlaylist()`; v2 does the same and also
+      forces the requested playlist if a foreign video starts.
 - [ ] A local intro video loops at boot until a channel or movie takes over.
 - [ ] A channel selector overlay with logos (v2: choose a logo or icon, plus an
       optional text name).

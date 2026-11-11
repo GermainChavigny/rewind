@@ -40,6 +40,17 @@ npm run build                # dist/ is then served by `rewind serve` on :8080
 
 No hardware needed: set `[power] provider = "fake"` in `config.toml`.
 
+### Sandbox (try the UI from any browser)
+
+```bash
+deploy/dev/setup-sandbox     # → http://<tv-ip>:8081
+```
+
+A second v2 instance with its own copy of the data and a **fake TV plug**, so
+keys pressed in the browser never switch the real TV. Runs as a systemd user
+service, even while the TV runs v1. Re-run to rebuild the UI and refresh data.
+End-to-end checks against it: `deploy/dev/e2e/*.py` (Playwright).
+
 ### Migrating from v1
 
 ```bash

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Sandbox: a safe REWIND v2 instance to try the UI from any browser on the LAN,
+# at http://<tv-ip>:8081 — even while the TV runs v1.
+#
+# - Own data (fresh copy of the v1 data, videos hardlinked) and own config with
+#   a FAKE TV plug: keys pressed in the browser never switch the real TV.
+# - Runs as a systemd user service (rewind-sandbox), restarted on failure.
+# - Re-run this script to rebuild the UI and refresh the data from v1.
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+UV="$(command -v uv || echo "$HOME/.local/bin/uv")"
+NPM="$HOME/.local/bin/npm"; [ -x "$NPM" ] || NPM="$(command -v npm)"
+PORT=8081
+DATA="$HOME/.local/share/rewind-sandbox"
+CONF="$HOME/.config/rewind-sandbox"
+UNIT="$HOME/.config/systemd/user/rewind-sandbox.service"
+
+echo "== building the UI"
+(cd "$REPO/frontend" && "$NPM" run -s build)
+
+echo "== refreshing sandbox data from v1"
+export REWIND_DATA_DIR="$DATA" REWIND_CONFIG_DIR="$CONF"
+(cd "$REPO/backend" && "$UV" run --quiet rewind import-v1 --overwrite-config >/dev/null)
+sed -i 's/^provider = "shelly"/provider = "fake"/' "$CONF/config.toml"
+
+echo "== installing the service"
+mkdir -p "$(dirname "$UNIT")"
+cat > "$UNIT" <<UNIT
+[Unit]
+Description=REWIND sandbox (fake TV plug) on port $PORT
+After=network-online.target
+
+[Service]
+WorkingDirectory=$REPO/backend
+Environment=REWIND_DATA_DIR=$DATA
+Environment=REWIND_CONFIG_DIR=$CONF
+ExecStart=$UV run rewind serve --port $PORT
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+UNIT
+systemctl --user daemon-reload
+systemctl --user enable --quiet rewind-sandbox.service
+systemctl --user restart rewind-sandbox.service
+
+IP="$(hostname -I | awk '{print $1}')"
+echo "Sandbox ready: http://$IP:$PORT"

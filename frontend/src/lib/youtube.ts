@@ -22,6 +22,7 @@ declare global {
 const SAVE_EVERY_MS = 2500;
 const PLAYING = 1;
 const ENDED = 0;
+const PAUSED = 2;
 
 let apiReady: Promise<void> | null = null;
 
@@ -38,6 +39,8 @@ function loadApi(): Promise<void> {
 
 export interface YouTubeEvents {
   onError: (code: number) => void;
+  /** Paused by the user (not buffering, not ended). */
+  onPausedChange: (paused: boolean) => void;
 }
 
 export class YouTubeChannel {
@@ -92,6 +95,11 @@ export class YouTubeChannel {
       : {};
     await this.ready;
     if (seq !== this.loadSeq) return; // zapped again meanwhile
+    // YouTube quirk (worked around in v1 too): loading a playlist while another
+    // one plays can keep playing a video of the OLD playlist. Stop first.
+    this.player.stopVideo();
+    await new Promise((r) => setTimeout(r, 300));
+    if (seq !== this.loadSeq) return;
     this.player.loadPlaylist({
       listType: 'playlist',
       list: channel.playlist_id,
@@ -105,6 +113,7 @@ export class YouTubeChannel {
   suspend(): void {
     this.suspended = true;
     this.pause();
+    this.events.onPausedChange(false);
   }
 
   pause(): void {
@@ -116,13 +125,15 @@ export class YouTubeChannel {
     this.player?.playVideo?.();
   }
 
-  get isPlaying(): boolean {
-    return this.player?.getPlayerState?.() === PLAYING;
+  /** Playlist the player actually plays (debugging). */
+  get playlistId(): string | null {
+    return this.player?.getPlaylistId?.() ?? null;
   }
 
+  /** Resume only when paused; otherwise (playing, loading, buffering) pause. */
   togglePlay(): void {
-    if (this.isPlaying) this.pause();
-    else this.resume();
+    if (this.player?.getPlayerState?.() === PAUSED) this.resume();
+    else this.pause();
   }
 
   next(): void {
@@ -147,9 +158,15 @@ export class YouTubeChannel {
       if (state === PLAYING) this.pause();
       return;
     }
+    if (state === PLAYING || state === PAUSED) this.events.onPausedChange(state === PAUSED);
     if (state === PLAYING) {
       this.player.unloadModule?.('captions');
       const videoId: string | undefined = this.player.getVideoData?.().video_id;
+      if (!this.belongsToChannel(videoId)) {
+        // Still a video of the previous channel: force the requested playlist.
+        this.player.playVideoAt(this.progress.video_index ?? 0);
+        return;
+      }
       if (videoId && videoId !== this.currentVideo) {
         // First play of the playlist already starts at the saved position.
         const first = this.currentVideo === null;
@@ -165,6 +182,13 @@ export class YouTubeChannel {
     }
   }
 
+  /** False when the playing video is not in the requested playlist (yet). */
+  private belongsToChannel(videoId: string | undefined): boolean {
+    const list: string[] | null = this.player?.getPlaylist?.() ?? null;
+    if (!videoId || !list?.length) return true; // unknown yet: don't fight the player
+    return list.includes(videoId) && this.player.getPlaylistId?.() === this.channel?.playlist_id;
+  }
+
   private startSaving(): void {
     if (this.saveTimer || !this.channel?.save_progress) return;
     this.saveTimer = setInterval(() => this.save(), SAVE_EVERY_MS);
@@ -178,7 +202,7 @@ export class YouTubeChannel {
   private save(): void {
     const ch = this.channel;
     const videoId: string | undefined = this.player?.getVideoData?.().video_id;
-    if (!ch?.playlist_id || !videoId) return;
+    if (!ch?.playlist_id || !videoId || !this.belongsToChannel(videoId)) return;
     const position = this.player.getCurrentTime();
     const index = this.player.getPlaylistIndex();
     this.progress.videos = { ...this.progress.videos, [videoId]: position };

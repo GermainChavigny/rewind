@@ -40,6 +40,8 @@
 </div>
 
 {#if tv.difficulty}<div class="blackout"></div>{/if}
+<!-- Paused: dim the video (and YouTube's own pause overlay) behind the channel grid. -->
+<div class="pause-dim" class:on={tv.paused}></div>
 
 <Stage layer={10}>
   <ChannelGrid />
@@ -87,6 +89,18 @@
   .blackout {
     z-index: 5;
     background: #000;
+  }
+  .pause-dim {
+    position: fixed;
+    inset: 0;
+    z-index: 4;
+    background: #000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .pause-dim.on {
+    opacity: 0.7;
   }
   .veil {
     z-index: 50;

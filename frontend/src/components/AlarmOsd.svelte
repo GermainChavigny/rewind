@@ -29,6 +29,7 @@
     color: var(--crt-f1);
     text-shadow: var(--crt-shadow);
     text-align: left;
+    pointer-events: auto;
   }
   .osd.off {
     color: var(--crt-dim);

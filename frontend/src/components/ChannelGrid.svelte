@@ -1,6 +1,7 @@
 <!--
   Channel selector (v1 #channels): 3×3 logo grid shown for a few seconds at
-  boot and after each zap; the current channel pops out with a white frame.
+  boot and after each zap, and while the video is paused (new in v2); the
+  current channel pops out with a white frame.
   New in v2: a status strip under the grid (alarm, weather, clock) — the
   quick visual check of whether the alarm is armed; click it to set it.
 -->
@@ -12,7 +13,9 @@
   import WeatherIcon from './WeatherIcon.svelte';
 
   let hover = $state(false);
-  const shown = $derived(tv.gridVisible || hover);
+  // Shown after a zap, while hovered, and while the video is paused — but
+  // never over a full screen (alarm, weather).
+  const shown = $derived((tv.gridVisible || hover || tv.paused) && !tv.screen);
 </script>
 
 <div

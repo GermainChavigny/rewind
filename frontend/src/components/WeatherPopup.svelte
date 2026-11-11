@@ -49,6 +49,8 @@
   .backdrop {
     position: absolute;
     inset: 0;
+    z-index: 20;
+    pointer-events: auto;
     display: flex;
     align-items: center;
     justify-content: center;
