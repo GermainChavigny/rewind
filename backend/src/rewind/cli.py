@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -23,6 +24,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     imp.add_argument("--tv-data", type=Path, default=Path.home() / "tv_data")
     imp.add_argument("--movies", type=Path, default=Path.home() / "movies")
+    imp.add_argument("--app", type=Path, default=Path.home() / "app_tv")
+    imp.add_argument("--xinitrc", type=Path, default=Path.home() / ".xinitrc")
+    imp.add_argument(
+        "--overwrite-config",
+        action="store_true",
+        help="regenerate config.toml from v1 even if it already exists",
+    )
 
     args = parser.parse_args(argv)
 
@@ -31,16 +39,22 @@ def main(argv: list[str] | None = None) -> int:
 
         from rewind.app import create_app
 
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
         uvicorn.run(create_app(), host=args.host, port=args.port)
         return 0
 
     if args.command == "import-v1":
         from rewind.paths import Paths
         from rewind.tools.import_v1 import import_v1
+        from rewind.tools.migrate_v1 import migrate_v1
 
-        report = import_v1(args.tv_data, args.movies, Paths.from_env().ensure())
+        paths = Paths.from_env().ensure()
+        report = import_v1(args.tv_data, args.movies, paths, args.app, args.xinitrc)
         print(report.summary())
-        return 0 if report.ok else 1
+        if not report.ok:
+            return 1
+        print(migrate_v1(paths, overwrite_config=args.overwrite_config).summary())
+        return 0
 
     return 2
 

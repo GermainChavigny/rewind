@@ -35,6 +35,11 @@ V1_JSON = (
 )
 V1_DIRS = ("posters",)
 
+# v1 app files holding settings that were hardcoded there (channels, smart plug
+# IP, weather location, logos), plus ~/.xinitrc (A/V offset, video output).
+V1_APP_FILES = ("modules/StateManager.js", "api.py", "config.js")
+V1_APP_DIRS = ("logos",)
+
 # Only media files are linked (not the stray .exe/.bat/scripts in ~/movies).
 MEDIA_EXTS = {
     ".mp4",
@@ -94,8 +99,14 @@ def _check_no_overlap(sources: list[Path], paths: Paths) -> None:
                 raise ValueError(f"{dst} and {src} overlap: import refused (v1 protection)")
 
 
-def snapshot_data(tv_data: Path, paths: Paths, report: ImportReport) -> None:
-    """Copy tv_data to <data>/import/v1 through a temp dir + rename."""
+def snapshot_data(
+    tv_data: Path,
+    paths: Paths,
+    report: ImportReport,
+    app_dir: Path | None = None,
+    xinitrc: Path | None = None,
+) -> None:
+    """Copy tv_data (+ v1 app settings files) to <data>/import/v1 via a temp dir + rename."""
     target = paths.import_v1
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.parent / f".v1-{int(time.time())}-{os.getpid()}"
@@ -111,6 +122,20 @@ def snapshot_data(tv_data: Path, paths: Paths, report: ImportReport) -> None:
             if src.is_dir():
                 shutil.copytree(src, tmp / name)
                 report.copied.append(f"{name}/")
+        if app_dir and app_dir.is_dir():
+            for rel in V1_APP_FILES:
+                src = app_dir / rel
+                if src.is_file():
+                    (tmp / "app" / rel).parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, tmp / "app" / rel)
+                    report.copied.append(f"app/{rel}")
+            for rel in V1_APP_DIRS:
+                if (app_dir / rel).is_dir():
+                    shutil.copytree(app_dir / rel, tmp / "app" / rel)
+                    report.copied.append(f"app/{rel}/")
+        if xinitrc and xinitrc.is_file():
+            shutil.copy2(xinitrc, tmp / "xinitrc")
+            report.copied.append("xinitrc")
         (tmp / "IMPORTED_AT").write_text(time.strftime("%Y-%m-%dT%H:%M:%S%z\n"))
 
         old = None
@@ -159,13 +184,19 @@ def link_media(movies: Path, paths: Paths, report: ImportReport) -> None:
             report.errors.append(f"{src.name}: {err}")
 
 
-def import_v1(tv_data: Path, movies: Path, paths: Paths) -> ImportReport:
+def import_v1(
+    tv_data: Path,
+    movies: Path,
+    paths: Paths,
+    app_dir: Path | None = None,
+    xinitrc: Path | None = None,
+) -> ImportReport:
     report = ImportReport()
     tv_data, movies = tv_data.expanduser(), movies.expanduser()
     if not tv_data.is_dir():
         report.errors.append(f"v1 data folder not found: {tv_data}")
         return report
-    _check_no_overlap([tv_data, movies], paths)
-    snapshot_data(tv_data, paths, report)
+    _check_no_overlap([p for p in (tv_data, movies, app_dir) if p], paths)
+    snapshot_data(tv_data, paths, report, app_dir, xinitrc)
     link_media(movies, paths, report)
     return report

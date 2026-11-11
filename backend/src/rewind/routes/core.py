@@ -1,0 +1,129 @@
+"""Core routes: modules, channels, YouTube progress, display state, alarm, logos."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
+
+from rewind.context import AppContext, get_ctx, require
+from rewind.modules import module_states
+
+router = APIRouter(prefix="/api")
+
+LOGO_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+
+
+@router.get("/modules")
+def modules(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
+    return module_states(ctx.config)
+
+
+@router.get("/channels")
+def channels(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
+    """Channels in remote order; `number` is the remote key (1–9)."""
+    return [{"number": i, **ch.model_dump()} for i, ch in enumerate(ctx.config.channels, start=1)]
+
+
+# --- YouTube progress -----------------------------------------------------------
+
+
+class ProgressIn(BaseModel):
+    video_id: str = Field(min_length=1)
+    video_index: int = Field(ge=0)
+    position: float = Field(ge=0)
+
+
+@router.get("/progress/{playlist_id}")
+def get_progress(playlist_id: str, ctx: AppContext = Depends(require("channels"))) -> dict:
+    return ctx.db.get_playlist_progress(playlist_id) or {}
+
+
+@router.put("/progress/{playlist_id}")
+def put_progress(
+    playlist_id: str, body: ProgressIn, ctx: AppContext = Depends(require("channels"))
+) -> dict:
+    # A validated body is never empty: the v1 "empty state overwrites progress"
+    # failure mode cannot happen here.
+    ctx.db.save_playlist_progress(playlist_id, body.video_id, body.video_index, body.position)
+    return {"status": "ok"}
+
+
+# --- Display state (persisted across reloads) -------------------------------------
+
+
+class StatePatch(BaseModel):
+    darkness: float | None = Field(default=None, ge=0, le=1)  # black veil opacity
+    volume: float | None = Field(default=None, ge=0, le=100)  # player volume
+
+
+STATE_DEFAULTS = {"darkness": 0.0, "volume": 100.0}
+
+
+@router.get("/state")
+def get_state(ctx: AppContext = Depends(get_ctx)) -> dict:
+    return {k: ctx.db.get_kv(f"state.{k}", v) for k, v in STATE_DEFAULTS.items()}
+
+
+@router.patch("/state")
+def patch_state(body: StatePatch, ctx: AppContext = Depends(get_ctx)) -> dict:
+    for key, value in body.model_dump(exclude_none=True).items():
+        ctx.db.set_kv(f"state.{key}", value)
+    return get_state(ctx)
+
+
+# --- Alarm --------------------------------------------------------------------------
+
+
+class Alarm(BaseModel):
+    time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    enabled: bool
+
+
+ALARM_DEFAULT = {"time": "08:00", "enabled": False}
+
+
+@router.get("/alarm")
+def get_alarm(ctx: AppContext = Depends(require("alarm"))) -> dict:
+    return ctx.db.get_kv("alarm", ALARM_DEFAULT)
+
+
+@router.put("/alarm")
+def put_alarm(body: Alarm, ctx: AppContext = Depends(require("alarm"))) -> dict:
+    ctx.db.set_kv("alarm", body.model_dump())
+    return body.model_dump()
+
+
+# --- Logos ----------------------------------------------------------------------------
+# Logo ids: "custom:<file>" for logos in <data>/logos. Built-in logos and icons
+# ship with the frontend (phase 2) and are listed there.
+
+
+def _logos_dir(ctx: AppContext) -> Path:
+    return ctx.paths.data / "logos"
+
+
+@router.get("/logos")
+def logos(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
+    folder = _logos_dir(ctx)
+    if not folder.is_dir():
+        return []
+    return [
+        {"id": f"custom:{p.name}", "url": f"/api/logos/{quote(p.name)}"}
+        for p in sorted(folder.iterdir())
+        if p.suffix.lower() in LOGO_EXTS
+    ]
+
+
+@router.get("/logos/{name}")
+def logo_file(name: str, ctx: AppContext = Depends(get_ctx)) -> FileResponse:
+    if not re.fullmatch(r"[\w .@-]+", name) or Path(name).suffix.lower() not in LOGO_EXTS:
+        raise HTTPException(400, "invalid logo name")
+    path = _logos_dir(ctx) / name
+    if not path.is_file():
+        raise HTTPException(404, "logo not found")
+    return FileResponse(path)
