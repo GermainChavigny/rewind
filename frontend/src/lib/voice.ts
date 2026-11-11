@@ -32,9 +32,9 @@ function speak(text: string, volume: number): boolean {
   return true;
 }
 
-/** "Réveil activé" / "Pas de réveil". */
-export function announce(text: string, clip: string, volume = 0.8): void {
-  if (!speak(text, volume)) void play(`audio/fr/${clip}.mp3`, volume);
+/** "Réveil activé" / "Pas de réveil" / "Film prêt" (recorded clip as a fallback, if any). */
+export function announce(text: string, clip?: string, volume = 0.8): void {
+  if (!speak(text, volume) && clip) void play(`audio/fr/${clip}.mp3`, volume);
 }
 
 /** Speaks a time like "7:30" (clips fallback: hour then minutes). */

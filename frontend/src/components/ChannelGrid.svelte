@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import { t } from '../lib/i18n';
+  import { movie } from '../lib/movie.svelte';
   import { tv } from '../lib/tv.svelte';
   import BellIcon from './BellIcon.svelte';
   import Clock from './Clock.svelte';
@@ -14,8 +15,10 @@
 
   let hover = $state(false);
   // Shown after a zap, while hovered, and while the video is paused — but
-  // never over a full screen (alarm, weather).
-  const shown = $derived((tv.gridVisible || hover || tv.paused) && !tv.screen);
+  // never over a full screen (alarm, weather, movie screens) or a movie.
+  const shown = $derived(
+    (tv.gridVisible || hover || tv.paused) && !tv.screen && !tv.overlay && !movie.active,
+  );
 </script>
 
 <div
@@ -52,7 +55,7 @@
     {/if}
     <span class="spacer"></span>
     {#if tv.weather}
-      <button class="weather" onclick={() => tv.openScreen('weather')}>
+      <button class="weather" onclick={() => tv.openOverlay('weather')}>
         <WeatherIcon code={tv.weather.code} size={20} />
         {tv.weather.periods.find((p) => p.id === 'afternoon')?.temp ?? ''}°
       </button>

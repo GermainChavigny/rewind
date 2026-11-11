@@ -11,22 +11,23 @@ consciously replaced) by v2. Tick items as they land.
       `pactl set-port-latency-offset … 200000`. Applied system-wide, so YouTube and
       movies are both fixed. v2: configurable offset in the admin, with a
       calibration screen (flash + beep), applied via PipeWire/PulseAudio.
-- [ ] Forced output mode (v1: `HDMI-2` at 720×576) → configurable; auto-detected
+- [x] Forced output mode (v1: `HDMI-2` at 720×576) → configurable; auto-detected
       by default.
-- [ ] No screen blanking / DPMS.
-- [ ] System volume forced to 100%; the remote's volume keys change the
+- [x] No screen blanking / DPMS.
+- [x] System volume forced to 100%; the remote's volume keys change the
       *player* volume (±5%) and show the retro VOLUME OSD.
-- [ ] Native cursor hidden; a pixel-art retro cursor (arrow/hand, sized in `vw`)
+- [x] Native cursor hidden; a pixel-art retro cursor (arrow/hand, sized in `vw`)
       is drawn instead, hidden when idle and when the mouse leaves the window.
 - [ ] Ad blocking on YouTube via **uBlock Origin Lite** (MV3) loaded in the kiosk
       browser. The installer must fetch it.
-- [ ] Chromium kiosk flags: autoplay without a user gesture,
+- [x] Chromium kiosk flags: autoplay without a user gesture,
       `AudioVideoTracks` (needed to switch audio tracks), no crash bubble, no
       update checks, tiny disk cache. (`--disable-web-security` is no longer
       needed once everything is same-origin.)
-- [ ] Jackett: the launcher waits for `JackettUpdater` (segfault after an
+- [x] Jackett: the launcher waits for `JackettUpdater` (segfault after an
       auto-update), systemd restarts it, and the API "kicks" it before a search
-      if its port is closed.
+      if its port is closed. (v2: `[[indexers]] systemd_unit`; the launcher
+      itself stays Jackett's own business.)
 - [ ] Remote (HAOBO air mouse): see the full mapping in "Remote control" below.
       v2: configurable keymap with a "learn key" mode.
 
@@ -64,76 +65,77 @@ turns the TV on through the plug and plays the alarm channel.
 
 ## YouTube channels
 
-- [ ] Progress saved per playlist *and* per video, every 2.5 s.
-- [ ] Never overwrite saved progress with an empty state (client and server
+- [x] Progress saved per playlist *and* per video, every 2.5 s.
+- [x] Never overwrite saved progress with an empty state (client and server
       guards).
-- [ ] Per-channel flags: `noSave` (e.g. News always starts fresh), `isAlarm`
+- [x] Per-channel flags: `noSave` (e.g. News always starts fresh), `isAlarm`
       (the alarm channel).
-- [ ] Preferred quality `hd720`.
+- [x] Preferred quality `hd720`.
 - [x] YouTube quirk: loading a playlist while another plays can keep playing a
       video of the OLD playlist (one-channel lag). v1 worked around it with
       `stopVideo()` + a delay before `loadPlaylist()`; v2 does the same and also
       forces the requested playlist if a foreign video starts.
-- [ ] A local intro video loops at boot until a channel or movie takes over.
-- [ ] A channel selector overlay with logos (v2: choose a logo or icon, plus an
+- [x] A local intro video loops at boot until a channel or movie takes over.
+- [x] A channel selector overlay with logos (v2: choose a logo or icon, plus an
       optional text name).
 
 ## Movies & series playback
 
-- [ ] Transcode plan from cheapest to most expensive: `remux` (H.264 + AAC/MP3)
+- [x] Transcode plan from cheapest to most expensive: `remux` (H.264 + AAC/MP3)
       → `audio` (copy the video, re-encode the audio) → `full` (H.264 baseline
       3.0, 720 wide, AAC). Keep **all** audio tracks; `+faststart`; write to a
       temp file, then rename.
-- [ ] Embedded fr/en text subtitles extracted to WebVTT. OpenSubtitles lookup
+- [x] Embedded fr/en text subtitles extracted to WebVTT. OpenSubtitles lookup
       by **moviehash** first, then IMDb/TMDB/title. Automatic resync with
       **ffsubsync**.
-- [ ] Live subtitle offset HUD (top right, ±0.1 s, shown on mouse move, auto-hide)
+- [x] Live subtitle offset HUD (top right, ±0.1 s, shown on mouse move, auto-hide)
       while the movie keeps playing. The offset is **per language** and persisted.
       It is re-applied when a VTT loads late, without shifting twice, and tracks
       use `hidden` mode so cues can be shifted before being shown.
-- [ ] Pause screen: fit mode `contain` (16:9 letterbox) ⇄ `cover` (4:3 crop),
+- [x] Pause screen: fit mode `contain` (16:9 letterbox) ⇄ `cover` (4:3 crop),
       subtitles language, audio track, clickable progress bar, back to the
       library.
-- [ ] A transparent "mouse catch" layer above `<video>` (mouse events on video
+- [x] A transparent "mouse catch" layer above `<video>` (mouse events on video
       are unreliable over the letterbox bars).
-- [ ] Watched at ≥ 92%. Resume position. Library order: active downloads →
+- [x] Watched at ≥ 92%. Resume position. Library order: active downloads →
       recently played → recently added.
-- [ ] Series: "Next SxxExx" HUD (on mouse move once the episode counts as watched;
+- [x] Series: "Next SxxExx" HUD (on mouse move once the episode counts as watched;
       always shown when paused); episode list popup; resume the last episode.
-- [ ] Downloads: 3 in parallel, **1 transcode at a time** (weak CPU). Priority to
+- [x] Downloads: 3 in parallel, **1 transcode at a time** (weak CPU). Priority to
       the lowest season/episode. Season packs, with a single-episode fallback.
       Jobs resume after a reboot. Airing shows are rechecked every 12 h.
-- [ ] Torrent reachability probe (…/✓/✗) before downloading.
-- [ ] Movie Advisor: a provider chain (Gemini → OpenRouter → fallbacks) where the
+- [x] Torrent reachability probe (…/✓/✗) before downloading.
+- [x] Movie Advisor: a provider chain (Gemini → OpenRouter → fallbacks) where the
       first that answers wins. Excludes "Forget"-ed titles and owned titles.
       French title shown; English title used for the torrent search.
 
 ## Alarm
 
-- [ ] Progressive alarm: the sound goes 0 → 1 over 30 s; YouTube fades in after
+- [x] Progressive alarm: the sound goes 0 → 1 over 30 s; YouTube fades in after
       20 s, over 15 s; it stops after 5 min max or on any key.
-- [ ] The time is announced by voice (speechSynthesis "Google français", with
+- [x] The time is announced by voice (speechSynthesis "Google français", with
       recorded number clips as a fallback). Spoken confirmations: "Réveil
       activé" / "Pas de réveil".
 
 ## Look & feel
 
-- [ ] Staggered fade-in of screen elements, with a soft WebAudio "tick" per
+- [x] Staggered fade-in of screen elements, with a soft WebAudio "tick" per
       element and a "beep" on clicks (synthesized; the AudioContext is woken on
       the first click).
-- [ ] Retro header with clock, date and a weather icon (next hour). Clicking it
+- [x] Retro header with clock, date and a weather icon (next hour). Clicking it
       opens the 90s weather channel popup (Morning / Afternoon / Evening + min/max).
-- [ ] SVG weather icons (emoji render as "tofu" in the mono font).
-- [ ] The VOLUME OSD is made only of characters (green `|`, dark `-`), with no
+- [x] SVG weather icons (emoji render as "tofu" in the mono font).
+- [x] The VOLUME OSD is made only of characters (green `|`, dark `-`), with no
       background.
-- [ ] Shared CRT footer shortcuts `[MOVIES] [SEARCH] [ADVISOR]`.
-- [ ] Delete needs a confirmation (two clicks).
-- [ ] Advisor: a quote from a fictional 90s TV critic (Michael Harper) on each
+- [x] Shared CRT footer shortcuts `[MOVIES] [SEARCH] [ADVISOR]` (v2: Films /
+      Recherche / Advisor, only the configured ones).
+- [x] Delete needs a confirmation (two clicks).
+- [x] Advisor: a quote from a fictional 90s TV critic (Michael Harper) on each
       opening.
-- [ ] Type sizes tuned for a small CRT at 720×576.
+- [x] Type sizes tuned for a small CRT at 720×576.
 
 ## Robustness
 
-- [ ] Atomic, fsynced writes (SQLite in v2).
-- [ ] Never kill unrelated processes at startup (v1 ran `killall python3`).
+- [x] Atomic, fsynced writes (SQLite in v2).
+- [x] Never kill unrelated processes at startup (v1 ran `killall python3`).
 - [ ] Rotated logs (v1's `api.log` grew to 26 MB).

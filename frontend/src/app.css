@@ -43,6 +43,7 @@
 
   /* Font sizes (v1: 2.65vw ≈ 19px is the body size, readable on a small CRT). */
   --fs-s: 15px;
+  --fs-sm: 17px; /* v1 2.35vw: overviews, sub-lines */
   --fs-m: 19px;
   --fs-l: 21px;
   --fs-xl: 28px;
@@ -116,4 +117,114 @@ button {
 }
 .wi-bolt {
   fill: var(--crt-accent);
+}
+
+/* --- Movie screens (v1 set-top-box look) --------------------------------------- */
+
+.movie-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(359deg, #000219, #000f76);
+  text-shadow: var(--crt-shadow);
+}
+.movie-screen.flat {
+  background: var(--crt-bg);
+}
+
+/* Fat, flat scrollbars in the theme colors. */
+.movie-screen ::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+.movie-screen ::-webkit-scrollbar-track {
+  background: var(--crt-panel-2);
+}
+.movie-screen ::-webkit-scrollbar-thumb {
+  background: var(--crt-dim);
+  border: 2px solid var(--crt-bg);
+}
+.movie-screen ::-webkit-scrollbar-thumb:hover {
+  background: var(--crt-accent);
+}
+
+/* Generic button; hover / active → amber highlight. */
+.crt-btn {
+  border: 1.3px solid var(--crt-border);
+  background: var(--crt-panel);
+  color: var(--crt-text);
+  font-size: var(--fs-l);
+  text-transform: uppercase;
+  padding: 8px 12px;
+  text-shadow: var(--crt-shadow);
+  transition:
+    background-color 0.1s,
+    color 0.1s;
+}
+.crt-btn:hover,
+.crt-btn.active,
+.crt-btn.primary {
+  background: var(--crt-accent);
+  color: var(--crt-accent-ink);
+  border-color: var(--crt-accent);
+  text-shadow: none;
+}
+.crt-btn.danger {
+  color: var(--crt-alert);
+  border-color: var(--crt-alert);
+}
+.crt-btn.danger:hover,
+.crt-btn.danger.active {
+  background: var(--crt-alert);
+  color: var(--crt-accent-ink);
+}
+.crt-btn:disabled {
+  opacity: 0.4;
+  --cur: arrow;
+}
+.crt-btn:disabled:hover {
+  background: var(--crt-panel);
+  color: var(--crt-text);
+  border-color: var(--crt-border);
+  text-shadow: var(--crt-shadow);
+}
+
+/* Text button "[LABEL]" of the footer. */
+.navbtn {
+  color: var(--crt-text);
+  text-transform: uppercase;
+}
+.navbtn:hover {
+  text-decoration: underline;
+}
+
+/* Progress bar: dark blue track, amber fill (cyan = download, green = convert). */
+.crt-bar {
+  position: relative;
+  display: block;
+  height: 12px;
+  background: var(--crt-panel-2);
+  overflow: hidden;
+}
+.crt-bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--crt-accent);
+}
+.crt-bar.download > i {
+  background: var(--crt-f3);
+}
+.crt-bar.convert > i {
+  background: var(--crt-f1);
+}
+
+/* Subtitles on the movie (native WebVTT rendering). */
+video::cue {
+  font-family: Arial, 'DejaVu Sans', sans-serif;
+  background: rgba(0, 0, 0, 0.55);
+  text-shadow: 1px 1px 2px #000;
 }

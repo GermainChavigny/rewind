@@ -16,7 +16,7 @@
   const w = $derived(tv.weather);
 </script>
 
-<div class="backdrop" role="presentation" onclick={() => tv.openScreen(null)} bind:this={root}>
+<div class="backdrop" role="presentation" onclick={() => tv.closeOverlay()} bind:this={root}>
   {#if w}
     <div class="frame" data-reveal>
       <div class="head" data-reveal>
@@ -49,7 +49,7 @@
   .backdrop {
     position: absolute;
     inset: 0;
-    z-index: 20;
+    z-index: 45; /* above every screen (it is an overlay) */
     pointer-events: auto;
     display: flex;
     align-items: center;

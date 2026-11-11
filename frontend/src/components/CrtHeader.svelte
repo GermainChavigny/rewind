@@ -19,7 +19,7 @@
     {#if tv.modules.alarm && tv.alarm.enabled}
       <span class="alarm"><BellIcon size={16} />{tv.alarm.time}</span>
     {/if}
-    <button class="clock" onclick={() => tv.openScreen('weather')} disabled={!tv.weather}>
+    <button class="clock" onclick={() => tv.openOverlay('weather')} disabled={!tv.weather}>
       <Clock part="time" />
       {#if tv.weather}<WeatherIcon code={tv.weather.code} size={22} />{/if}
       <Clock part="date" />

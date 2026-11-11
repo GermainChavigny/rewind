@@ -4,6 +4,7 @@
 #
 # - Own data (fresh copy of the v1 data, videos hardlinked) and own config with
 #   a FAKE TV plug: keys pressed in the browser never switch the real TV.
+# - Downloads started from the sandbox are real (and go to the sandbox data).
 # - Runs as a systemd user service (rewind-sandbox), restarted on failure.
 # - Re-run this script to rebuild the UI and refresh the data from v1.
 set -euo pipefail
@@ -23,6 +24,8 @@ echo "== refreshing sandbox data from v1"
 export REWIND_DATA_DIR="$DATA" REWIND_CONFIG_DIR="$CONF"
 (cd "$REPO/backend" && "$UV" run --quiet rewind import-v1 --overwrite-config >/dev/null)
 sed -i 's/^provider = "shelly"/provider = "fake"/' "$CONF/config.toml"
+# Its own BitTorrent ports: the TV's v2 may run at the same time.
+sed -i 's/^torrent_port = .*/torrent_port = 6893/' "$CONF/config.toml"
 
 echo "== installing the service"
 mkdir -p "$(dirname "$UNIT")"

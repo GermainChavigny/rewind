@@ -16,6 +16,13 @@ the stage: they always fill the screen. Layers, bottom to top: video, stage
 (grid, screens, "technical difficulties" card), darkness veil, stage (OSDs),
 retro cursor. State and remote behaviour live in `frontend/src/lib/tv.svelte.ts`.
 
+Screens: one full screen at a time (`tv.screen`: alarm, library, results,
+series, advisor) and an overlay above it (`tv.overlay`: weather popup, on-screen
+keyboard). The movie screens share a footer with the Films / Recherche / Advisor
+shortcuts; a playing movie shows the pause screen and the subtitle / next
+episode HUDs. Movie playback is `lib/movie.svelte.ts`, the catalog and the job
+polling `lib/library.svelte.ts`.
+
 Errors are shown as a "TECHNICAL DIFFICULTIES — please stand by" card.
 
 ## Languages
@@ -52,7 +59,22 @@ unconfigured module answer 404.
 | alarm | a channel has `alarm = true` | `/api/alarm` |
 | power | `[power]` provider set | `/api/tv/power` |
 | weather | latitude + longitude set | `/api/weather` |
-| library | `[library] enabled` | `/api/library…`, `/api/posters/{id}`, `/media/{file}` |
+| library | `[library] enabled` | `/api/library…`, `/api/series…`, `/api/advisor…`, `/api/posters/{id}`, `/media/{file}` |
+
+Inside the library, `GET /api/library/features` tells the UI what else is
+configured: `search` (an indexer + libtorrent), `series` (an indexer + a TMDB
+key), `advisor` (an AI provider). Unconfigured parts answer 503.
+
+## Library pipeline
+
+`backend/src/rewind/library/`: a movie job goes magnet → libtorrent download
+(several in parallel) → subtitles (embedded fr/en extracted to WebVTT, missing
+languages from OpenSubtitles by moviehash, re-timed with ffsubsync) → ffmpeg
+(remux, audio-only or full re-encode: one at a time) → ready. Series downloads
+are "packs" (an episode, a season or the whole show) whose files are mapped to
+episodes; episodes missing from a season pack fall back to single-episode
+searches. Job state lives in the database, so jobs resume after a reboot.
+Downloads are staged in `<data>/downloads` and removed once converted.
 
 Always available: `/api/health`, `/api/state` (darkness, volume — persisted),
 `/api/logos`, `/api/admin/*`.
@@ -86,6 +108,7 @@ See [v1-behaviors.md](v1-behaviors.md) for the checklist of v1 details to carry 
 
 ## Third-party assets to check before going public
 
-The fonts (VCR OSD Mono, Home Video Bold), the intro video and the sounds come
+The fonts (VCR OSD Mono, Home Video Bold), the intro video, the sounds and the
+Movie Advisor critic picture (`frontend/public/img/advisor-critic.gif`) come
 from v1; their licenses must be verified before the repository is made public.
 Channel logos are never shipped: they are the user's own files (`<data>/logos`).

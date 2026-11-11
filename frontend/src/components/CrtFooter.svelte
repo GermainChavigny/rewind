@@ -23,6 +23,7 @@
     letter-spacing: 0.6px;
     color: var(--crt-dim);
     flex: 0 0 auto;
+    white-space: nowrap;
   }
   .left,
   .actions {
