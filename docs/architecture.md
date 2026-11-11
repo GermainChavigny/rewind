@@ -31,3 +31,5 @@ While v2 is being developed, v1 stays in daily use:
 - `rewind import-v1`: snapshot of the v1 data + hardlinks to `~/movies`.
   v1 is never modified.
 - v2 listens on port 8080 (v1 uses 5000 and 8000).
+
+See [v1-behaviors.md](v1-behaviors.md) for the checklist of v1 details to carry over.
