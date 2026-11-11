@@ -27,9 +27,40 @@ consciously replaced) by v2. Tick items as they land.
 - [ ] Jackett: the launcher waits for `JackettUpdater` (segfault after an
       auto-update), systemd restarts it, and the API "kicks" it before a search
       if its port is closed.
-- [ ] Remote (HAOBO air mouse): it sends AZERTY digit characters (`&é"'(-è_çà`)
-      and media keys. Mute = TV power off (smart plug). The UI is cursor-driven,
-      with big targets. → configurable keymap with a "learn key" mode.
+- [ ] Remote (HAOBO air mouse): see the full mapping in "Remote control" below.
+      v2: configurable keymap with a "learn key" mode.
+
+## Remote control (v1 mapping, Linux)
+
+Two **different** power buttons — do not mix them up:
+
+| Button | What it does | Handled by |
+|---|---|---|
+| Remote **power** button (`KEY_POWER`) | Shuts down the **mini PC** | systemd-logind (`HandlePowerKey=poweroff`, Debian default) — the app never sees it |
+| Remote **mute** button (`AudioVolumeMute`) | Turns the **TV** off/on through the Wi-Fi smart plug (Shelly) | the app (`/tv-power` proxy) |
+
+| Key (`event.key`) | Action |
+|---|---|
+| `& é " ' ( - è _ ç` (digits 1–9 on AZERTY) | Channel 1–9. The channel logo bar shows for 3 s at boot and 2 s after each switch. The Movies channel shows the bar first, then opens the library after 900 ms (cancelled if you zap again). Any other channel closes the movie overlays and plays its playlist. |
+| `à` (0) | Toggles the alarm. Voice feedback: "Réveil activé" / "Pas de réveil". |
+| ↑ / ↓ | Alarm time ±10 min. **Also enables the alarm** and speaks the new time (volume 0.8). In the movie UI, scrolls the hovered list instead. |
+| ← / → | Seek ±15 s (YouTube and movies). |
+| Play/Pause | Play/pause. Resuming also requests full screen. |
+| Next / Previous | YouTube: next/previous video in the playlist. Movies: next/previous item of the sorted library queue. Context-dependent. |
+| Volume + / − | **Player** volume ±5 points (linear), retro VOLUME OSD. The system volume stays at 100%. v2: use a perceptual (log) curve so steps sound even. |
+| PageUp / PageDown | Black veil over the **whole** UI (opacity 0–1). PageUp = darker, PageDown = lighter. **Non-linear steps**: 5% normally, 2% above 50% darkness, 1% above 80%, for fine control when very dark. Not persisted (resets on reload). v2: persist it. |
+| Mute | TV power via the smart plug. On YouTube: TV on → off and pause the video; TV off → on. **In movie mode it only pauses the movie** (does not turn the TV off). |
+| Any key except Mute | Turns the TV on (smart plug). |
+| Any key | Stops a ringing alarm. |
+| Air mouse | Cursor-driven movie screens (big targets). |
+
+v2 new requirement: the alarm needs a **visual** access too. Show an alarm OSD
+(time + on/off) when adjusting it, a permanent discreet indicator when it is
+armed, and a settings screen reachable from the TV and from the phone admin.
+In v1 the only feedback is the voice.
+
+Note: the alarm only fires while the PC is on and the kiosk is running; it then
+turns the TV on through the plug and plays the alarm channel.
 
 ## YouTube channels
 
