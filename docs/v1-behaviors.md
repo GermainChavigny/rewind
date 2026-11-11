@@ -49,7 +49,7 @@ Two **different** power buttons — do not mix them up:
 | Next / Previous | YouTube: next/previous video in the playlist. Movies: next/previous item of the sorted library queue. Context-dependent. |
 | Volume + / − | **Player** volume ±5 points (linear), retro VOLUME OSD. The system volume stays at 100%. v2: use a perceptual (log) curve so steps sound even. |
 | PageUp / PageDown | Black veil over the **whole** UI (opacity 0–1). PageUp = darker, PageDown = lighter. **Non-linear steps**: 5% normally, 2% above 50% darkness, 1% above 80%, for fine control when very dark. Not persisted (resets on reload). v2: persist it. |
-| Mute | TV power via the smart plug. On YouTube: TV on → off and pause the video; TV off → on. **In movie mode it only pauses the movie** (does not turn the TV off). |
+| Mute | TV power via the smart plug. TV on → pause playback (YouTube **or movie**) and turn the TV off; TV off → turn it on. (v1 bug: in movie mode it only paused the movie and left the TV on — v2 must also turn the TV off.) |
 | Any key except Mute | Turns the TV on (smart plug). |
 | Any key | Stops a ringing alarm. |
 | Air mouse | Cursor-driven movie screens (big targets). |
