@@ -7,6 +7,17 @@ deploy/    boot menu, systemd services, kiosk (cage + Chromium)
 docs/      documentation
 ```
 
+## TV interface
+
+The UI is laid out on a fixed **720×576 stage** (the CRT's PAL mode) and scaled
+into a 4:3 frame (`frontend/src/lib/stage.ts`): scale 1 on the CRT (v1 sizes
+kept), pillarboxed on 16:9 screens. Videos (intro, YouTube, movies) are not on
+the stage: they always fill the screen. Layers, bottom to top: video, stage
+(grid, screens, "technical difficulties" card), darkness veil, stage (OSDs),
+retro cursor. State and remote behaviour live in `frontend/src/lib/tv.svelte.ts`.
+
+Errors are shown as a "TECHNICAL DIFFICULTIES — please stand by" card.
+
 ## Languages
 
 Code, comments, docs and logs are in English. The user interface is in French
@@ -67,5 +78,14 @@ While v2 is being developed, v1 stays in daily use:
   Shelly IP, weather location, A/V offset, video output, API keys);
   `--overwrite-config` regenerates it. v1 is never modified.
 - v2 listens on port 8080 (v1 uses 5000 and 8000).
+- `deploy/kiosk/start-v2`: temporary X session for v2 (backend + Chromium
+  kiosk with uBlock Origin Lite), launched by the boot menu. Replaced by the
+  cage kiosk in phase 5.
 
 See [v1-behaviors.md](v1-behaviors.md) for the checklist of v1 details to carry over.
+
+## Third-party assets to check before going public
+
+The fonts (VCR OSD Mono, Home Video Bold), the intro video and the sounds come
+from v1; their licenses must be verified before the repository is made public.
+Channel logos are never shipped: they are the user's own files (`<data>/logos`).

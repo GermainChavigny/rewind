@@ -32,7 +32,20 @@ def main(argv: list[str] | None = None) -> int:
         help="regenerate config.toml from v1 even if it already exists",
     )
 
+    get = sub.add_parser("config-get", help="print a config value, e.g. display.mode")
+    get.add_argument("key")
+
     args = parser.parse_args(argv)
+
+    if args.command == "config-get":
+        from rewind.config import ConfigStore
+        from rewind.paths import Paths
+
+        value: object = ConfigStore(Paths.from_env().config / "config.toml").get()
+        for part in args.key.split("."):
+            value = getattr(value, part, None)
+        print("" if value is None else value)
+        return 0
 
     if args.command == "serve":
         import uvicorn

@@ -161,3 +161,20 @@ def test_logos(make_client, paths):
     assert logos == [{"id": "custom:Making of TV.png", "url": "/api/logos/Making%20of%20TV.png"}]
     assert client.get(logos[0]["url"]).content == b"png"
     assert client.get("/api/logos/notes.txt").status_code == 400
+
+
+def test_ui_settings(make_client):
+    ui = make_client(sample_config()).get("/api/ui").json()
+    assert ui["language"] == "fr" and ui["keymap"]["tv_power"] == ["AudioVolumeMute"]
+    assert ui["alarm"]["step_minutes"] == 10
+    assert "admin" not in ui and "tmdb" not in ui
+
+
+def test_serves_frontend(make_client, paths, tmp_path, monkeypatch):
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<title>REWIND</title>")
+    monkeypatch.setenv("REWIND_FRONTEND_DIR", str(dist))
+    client = make_client()
+    assert "REWIND" in client.get("/").text
+    assert client.get("/api/health").json()["status"] == "ok"

@@ -1,0 +1,119 @@
+/*
+ * Design tokens. Sizes are in stage pixels: the UI is laid out on a 720×576
+ * stage (see lib/stage.ts), so 1px here = 1px on the CRT. v1 sizes were in
+ * vw/vh on that same 720×576 screen (1vw = 7.2px, 1vh = 5.76px).
+ */
+
+@font-face {
+  font-family: 'VCR OSD Mono';
+  src: url('/fonts/VCR_OSD_MONO.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'Home Video Bold';
+  src: url('/fonts/HomeVideoBold.ttf') format('truetype');
+  font-display: block;
+}
+
+:root {
+  --crt-bg: #001448;
+  --crt-bar-bg: #000c2e;
+  --crt-panel: #052163;
+  --crt-panel-2: #002ab8;
+  --crt-border: #d1d7e3;
+  --crt-divider: rgba(209, 215, 227, 0.2);
+  --crt-text: #d1d7e3;
+  --crt-dim: #b7c0d6;
+  --crt-accent: #ffdd00;
+  --crt-accent-ink: #001448;
+  --crt-f1: #07ff07;
+  --crt-f2: #e6c34d;
+  --crt-f3: #59c3e6;
+  --crt-alert: #e07a7a;
+  --crt-mono: 'VCR OSD Mono', 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+  --crt-block: 'Home Video Bold', 'VCR OSD Mono', monospace;
+
+  /* Anti-overscan margins: a CRT crops ~5% of the picture on each edge. */
+  --safe-x: 43px;
+  --safe-y: 20px;
+
+  /* Thick 90s OSD shadow: hard black shadows stacked down-right, no blur. */
+  --crt-shadow: 0.6px 0.6px 0 #000, 1.2px 1.3px 0 #000, 1.7px 1.9px 0 #000, 2.3px 2.5px 0 #000,
+    2.9px 3.2px 0 #000;
+
+  /* Font sizes (v1: 2.65vw ≈ 19px is the body size, readable on a small CRT). */
+  --fs-s: 15px;
+  --fs-m: 19px;
+  --fs-l: 21px;
+  --fs-xl: 28px;
+  --fs-xxl: 35px;
+}
+
+* {
+  box-sizing: border-box;
+  cursor: none; /* the retro cursor is drawn by RetroCursor.svelte */
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: var(--crt-text);
+  font-family: var(--crt-mono);
+  /* Pixel fonts: no smoothing, no synthetic bold (it smears). */
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  font-synthesis: none;
+  text-rendering: optimizeSpeed;
+  user-select: none;
+  --cur: arrow;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  --cur: hand;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Weather icons (WMO codes), see components/WeatherIcon.svelte. */
+.wi {
+  fill: none;
+  stroke: none;
+  overflow: visible;
+}
+.wi-cloud {
+  fill: var(--crt-dim);
+}
+.wi-sun {
+  fill: var(--crt-accent);
+}
+.wi-sun-rays {
+  stroke: var(--crt-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.wi-rain {
+  stroke: var(--crt-f3);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.wi-fog {
+  stroke: var(--crt-dim);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.wi-snow {
+  fill: var(--crt-text);
+}
+.wi-bolt {
+  fill: var(--crt-accent);
+}

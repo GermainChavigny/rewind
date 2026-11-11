@@ -1,0 +1,61 @@
+#!/bin/sh
+# X session for REWIND v2: backend + Chromium kiosk.
+# Temporary (phase 2) — replaced by the cage kiosk in phase 5.
+
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+UV="${UV:-$HOME/.local/bin/uv}"
+PORT=8080
+LOG="${XDG_STATE_HOME:-$HOME/.local/state}/rewind"
+mkdir -p "$LOG"
+
+cfg() { (cd "$REPO/backend" && "$UV" run --quiet rewind config-get "$1"); }
+
+# --- Display: no blanking; video mode from config.toml ---------------------
+xset s off; xset -dpms; xset s noblank
+OUTPUT="$(cfg display.output)"
+MODE="$(cfg display.mode)"
+if [ -n "$OUTPUT" ] && [ -n "$MODE" ]; then
+  # config uses DRM names (HDMI-A-2); X11 calls it HDMI-2.
+  XOUT="$(echo "$OUTPUT" | sed 's/^HDMI-A-/HDMI-/')"
+  xrandr --output "$XOUT" --mode "$MODE" || xrandr --output "$OUTPUT" --mode "$MODE"
+fi
+
+# --- Audio: A/V offset (compensates a video path that lags, e.g. HDMI→SCART)
+pulseaudio --start 2>/dev/null
+PORT_NAME="$(cfg audio.output_port)"
+OFFSET_MS="$(cfg audio.av_offset_ms)"
+if [ -n "$PORT_NAME" ] && [ -n "$OFFSET_MS" ]; then
+  for card in $(pactl list cards short | cut -f2); do
+    pactl set-port-latency-offset "$card" "$PORT_NAME" $((OFFSET_MS * 1000)) 2>/dev/null && break
+  done
+fi
+pactl set-sink-volume @DEFAULT_SINK@ 100%
+
+# --- Backend ------------------------------------------------------------------
+(cd "$REPO/backend" && exec "$UV" run rewind serve --port $PORT) >"$LOG/backend.log" 2>&1 &
+BACKEND=$!
+trap 'kill $BACKEND 2>/dev/null' EXIT
+for _ in $(seq 1 40); do
+  python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:$PORT/api/health', timeout=1)" 2>/dev/null && break
+  sleep 0.5
+done
+
+systemctl --user start jackett.service 2>/dev/null
+unclutter -idle 3 -root &
+openbox-session &
+
+# --- Browser --------------------------------------------------------------------
+UBLOCK="$HOME/ublock_extension"
+EXT=""
+[ -d "$UBLOCK" ] && EXT="--load-extension=$UBLOCK"
+chromium \
+  --kiosk \
+  --no-first-run \
+  --disable-session-crashed-bubble \
+  --check-for-update-interval=31536000 \
+  --disk-cache-size=1 \
+  --autoplay-policy=no-user-gesture-required \
+  --enable-blink-features=AudioVideoTracks \
+  --user-data-dir="$HOME/.local/share/rewind/chromium" \
+  $EXT \
+  "http://127.0.0.1:$PORT/" >"$LOG/chromium.log" 2>&1

@@ -19,9 +19,25 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest -q
 
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+
   boot-menu:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: bash -n deploy/boot/rewind-boot deploy/boot/tv-switch deploy/boot/install-boot-menu
       - run: python3 deploy/boot/tests/test_rewind_boot.py
+      - run: sh -n deploy/kiosk/start-v2 && sh -n deploy/kiosk/xinitrc-v2

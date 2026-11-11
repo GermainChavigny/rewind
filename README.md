@@ -28,6 +28,17 @@ uv run pytest
 uv run rewind serve          # http://localhost:8080/api/health
 ```
 
+And the TV interface (Node 20.19+):
+
+```bash
+cd frontend
+npm install
+npm run dev                  # http://localhost:5173 (proxies /api to :8080)
+npm run build                # dist/ is then served by `rewind serve` on :8080
+```
+
+No hardware needed: set `[power] provider = "fake"` in `config.toml`.
+
 ### Migrating from v1
 
 ```bash

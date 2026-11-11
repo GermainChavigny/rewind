@@ -23,6 +23,18 @@ def modules(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
     return module_states(ctx.config)
 
 
+@router.get("/ui")
+def ui(ctx: AppContext = Depends(get_ctx)) -> dict:
+    """Settings the TV UI needs at boot (no secrets)."""
+    c = ctx.config
+    return {
+        "language": c.general.language,
+        "keymap": c.remote.keys,
+        "alarm": c.alarm.model_dump(),
+        "crt_effects": c.display.crt_effects,
+    }
+
+
 @router.get("/channels")
 def channels(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
     """Channels in remote order; `number` is the remote key (1–9)."""

@@ -1,0 +1,51 @@
+/**
+ * Retro UI sounds, synthesized with WebAudio (no files): a soft "tick" per
+ * element appearing on screen, and a "beep" on clicks. The AudioContext can
+ * only start after a user gesture: it is woken on the first click or key.
+ */
+
+let ctx: AudioContext | null = null;
+let master: GainNode | null = null;
+
+export function wakeAudio(): void {
+  if (!ctx) {
+    ctx = new AudioContext();
+    master = ctx.createGain();
+    master.gain.value = 0.5;
+    master.connect(ctx.destination);
+  }
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+}
+
+export function blip(kind: 'click' | 'tick'): void {
+  if (!ctx || !master || ctx.state !== 'running') return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const click = kind === 'click';
+  osc.type = click ? 'square' : 'sine';
+  osc.frequency.value = click ? 1180 : 720;
+  gain.gain.setValueAtTime(click ? 0.06 : 0.025, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + (click ? 0.05 : 0.03));
+  osc.connect(gain).connect(master);
+  osc.start(now);
+  osc.stop(now + 0.06);
+}
+
+/**
+ * Staggered "loading" reveal of a screen's elements (v1 RetroFx): each element
+ * pops in after the previous one, with a tick every other element.
+ */
+export function reveal(root: HTMLElement, selector = '[data-reveal]', max = 26): void {
+  const items = [...root.querySelectorAll<HTMLElement>(selector)].slice(0, max);
+  items.forEach((el, i) => {
+    const delay = i * 32;
+    el.animate([{ opacity: 0 }, { opacity: 1 }], {
+      duration: 80,
+      delay,
+      easing: 'steps(1, start)',
+      fill: 'backwards',
+    });
+    if (i % 2 === 0) setTimeout(() => blip('tick'), delay);
+  });
+}
