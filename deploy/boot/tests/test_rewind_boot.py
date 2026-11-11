@@ -32,7 +32,7 @@ def run(keys, default=None, delay="2"):
     for key, wait in keys:
         time.sleep(wait)
         os.write(fd, key)
-    while time.time() - start < 6:
+    while time.time() - start < 7:
         ready, _, _ = select.select([fd], [], [], 0.2)
         if ready:
             try:
@@ -54,6 +54,9 @@ CASES = [
     ("down + OK boots v2", [(b"\x1b[B", 0.5), (b"\r", 0.3)], None, "LAUNCH v2"),
     ("default v2 on timeout", [], "v2", "LAUNCH v2"),
     ("default v2, up + OK boots v1", [(b"\x1b[A", 0.5), (b"\n", 0.3)], "v2", "LAUNCH v1"),
+    # No OK button needed: the selected item boots when the countdown ends.
+    ("down then wait boots v2", [(b"\x1b[B", 0.5)], None, "LAUNCH v2"),
+    ("down twice then wait boots v1", [(b"\x1b[B", 0.5), (b"\x1b[B", 0.3)], None, "LAUNCH v1"),
 ]
 
 if __name__ == "__main__":

@@ -80,11 +80,10 @@ draw() {
   if [ "$selected" = v2 ]; then line "  ${BLK_ON_CYA}${v2}"; else line "  ${WHT}${v2}"; fi
   line ""
   line ""
-  if [ "$countdown" -ge 0 ]; then
-    line "  ${YEL}Démarrage de ${default} dans ${countdown} s ..."
-  else
-    line "  ${YEL}Flèches puis OK pour lancer"
-  fi
+  line "  ${YEL}Démarrage de ${selected} dans ${countdown} s ..."
+  line ""
+  line "  ${WHT}Touche 1 ou 2 : lancer tout de suite"
+  line "  ${WHT}Flèches : changer de programme"
   line ""
   line "  ${WHT}Par défaut : ${default}   (changer : tv-switch v1|v2)"
 }
@@ -138,21 +137,21 @@ menu() {
   selected="$default"
   countdown="$DELAY"
   clear_blue
+  # The countdown never stops: arrows move the selection and restart it, and
+  # the SELECTED program boots when it ends. So the menu works even if the
+  # remote's OK button is a mouse click (invisible on the text console).
   while :; do
     draw "$selected" "$countdown" "$default"
-    if [ "$countdown" -ge 0 ]; then
-      key="$(read_key 1)"
-      if [ -z "$key" ]; then
-        countdown=$(( countdown - 1 ))
-        if [ "$countdown" -lt 0 ]; then CHOICE="$default"; return; fi
-        continue
-      fi
-      countdown=-1   # any key stops the countdown
-    else
-      key="$(read_key 1)"
+    key="$(read_key 1)"
+    if [ -z "$key" ]; then
+      countdown=$(( countdown - 1 ))
+      if [ "$countdown" -lt 0 ]; then CHOICE="$selected"; return; fi
+      continue
     fi
     case "$key" in
-      up|down) [ "$selected" = v1 ] && selected=v2 || selected=v1 ;;
+      up|down)
+        [ "$selected" = v1 ] && selected=v2 || selected=v1
+        countdown="$DELAY" ;;
       1) CHOICE=v1; return ;;
       2) CHOICE=v2; return ;;
       ok) CHOICE="$selected"; return ;;
