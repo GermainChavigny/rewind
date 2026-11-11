@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Installe (ou retire) le menu de démarrage v1/v2 sur la console tty1.
+#
+#   ./install-boot-menu            installe
+#   ./install-boot-menu --remove   restaure ~/.bash_profile d'origine
+#
+# Le ~/.bash_profile d'origine est sauvegardé en ~/.bash_profile.rewind-backup.
+set -eu
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+PROFILE="$HOME/.bash_profile"
+BACKUP="$HOME/.bash_profile.rewind-backup"
+BIN="$HOME/.local/bin"
+
+if [ "${1:-}" = "--remove" ]; then
+  [ -f "$BACKUP" ] || { echo "Aucune sauvegarde trouvée ($BACKUP)." >&2; exit 1; }
+  mv "$BACKUP" "$PROFILE"
+  rm -f "$BIN/tv-switch"
+  echo "Menu retiré, ~/.bash_profile restauré."
+  exit 0
+fi
+
+mkdir -p "$BIN"
+ln -sf "$HERE/tv-switch" "$BIN/tv-switch"
+[ -f "$BACKUP" ] || cp "$PROFILE" "$BACKUP"
+
+cat > "$PROFILE" <<PROFILE
+# Généré par REWIND (install-boot-menu). Original : $BACKUP
+export PATH="\$HOME/.local/bin:\$PATH"
+
+# Console physique (tty1) uniquement, jamais en SSH.
+if [ -z "\${DISPLAY:-}" ] && [ "\$(tty)" = "/dev/tty1" ]; then
+    if [ -x "$HERE/rewind-boot" ]; then
+        "$HERE/rewind-boot" || startx
+    else
+        startx
+    fi
+fi
+PROFILE
+echo "Menu de démarrage installé. Effet au prochain démarrage de la TV."

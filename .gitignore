@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+# Frontend
+node_modules/
+frontend/dist/
+# Données locales de dev (jamais dans le dépôt)
+/data/
+*.log
+.DS_Store
