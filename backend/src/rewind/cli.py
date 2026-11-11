@@ -1,4 +1,4 @@
-"""Point d'entrée en ligne de commande : `rewind serve`, `rewind import-v1`…"""
+"""Command-line entry point: `rewind serve`, `rewind import-v1`…"""
 
 from __future__ import annotations
 
@@ -10,16 +10,16 @@ DEFAULT_PORT = 8080
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="rewind", description="REWIND — la télé des années 90")
+    parser = argparse.ArgumentParser(prog="rewind", description="REWIND — a 90s TV experience")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    serve = sub.add_parser("serve", help="lancer le serveur (API + interface)")
+    serve = sub.add_parser("serve", help="run the server (API + UI)")
     serve.add_argument("--host", default="0.0.0.0")
     serve.add_argument("--port", type=int, default=DEFAULT_PORT)
 
     imp = sub.add_parser(
         "import-v1",
-        help="importer une copie des données de la v1 (sans jamais modifier la v1)",
+        help="import a copy of the v1 data (never modifies v1)",
     )
     imp.add_argument("--tv-data", type=Path, default=Path.home() / "tv_data")
     imp.add_argument("--movies", type=Path, default=Path.home() / "movies")

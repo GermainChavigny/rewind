@@ -24,3 +24,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash -n deploy/boot/rewind-boot deploy/boot/tv-switch deploy/boot/install-boot-menu
+      - run: python3 deploy/boot/tests/test_rewind_boot.py

@@ -1,23 +1,25 @@
 # REWIND
 
-> Une télé des années 80/90 pour votre mini PC : chaînes, bibliothèque de films
-> et séries, réveil, météo… avec l'habillage d'une vraie chaîne d'époque.
+> An 80s/90s TV experience for your mini PC: channels, a movie and series
+> library, alarm clock, weather… dressed up like a real channel of the era.
 
-**🚧 En cours de développement (v2).** L'installation en une commande arrive
-en phase 5 ; voir la [feuille de route](docs/roadmap.md).
+**🚧 Work in progress (v2).** One-command install lands in phase 5 — see the
+[roadmap](docs/roadmap.md).
 
-## Principes
+The user interface is in French for now; it is built for translation (i18n).
 
-- **Pensé pour la TV cathodique** : interface 4:3 en 720×576, lisible de loin ;
-  fonctionne aussi sur écran HD (4:3 centré, films 16:9 en plein écran).
-- **Simple à installer** : Debian + une commande, puis tout se règle depuis un
-  téléphone (`http://tv.local`).
-- **Modulaire** : chaque fonction (chaînes YouTube, films, séries, réveil,
-  météo, prise connectée…) n'apparaît que si elle est configurée.
+## Principles
 
-## Développer
+- **CRT first**: a 4:3 interface at 720×576, readable from the couch. Works on
+  HD screens too (4:3 pillarboxed UI, 16:9 movies full screen).
+- **Easy to install**: Debian + one command, then everything is configured from
+  a phone (`http://tv.local`).
+- **Modular**: each feature (YouTube channels, movies, series, alarm, weather,
+  smart plug…) only shows up once it is configured.
 
-Prérequis : [uv](https://docs.astral.sh/uv/) (Python 3.11+) — Linux ou macOS.
+## Development
+
+Requirements: [uv](https://docs.astral.sh/uv/) (Python 3.11+) — Linux or macOS.
 
 ```bash
 cd backend
@@ -26,16 +28,15 @@ uv run pytest
 uv run rewind serve          # http://localhost:8080/api/health
 ```
 
-### Migrer depuis la v1
+### Migrating from v1
 
 ```bash
 uv run rewind import-v1 --tv-data ~/tv_data --movies ~/movies
 ```
 
-Ne modifie jamais la v1 : copie des données + liens physiques vers les vidéos.
-Relançable à volonté.
+Never modifies v1: data is copied and videos are hardlinked. Safe to re-run.
 
-## Licence
+## License
 
-[GPL-3.0-or-later](LICENSE). L'usage des sources de contenu que vous
-configurez relève de votre responsabilité.
+[GPL-3.0-or-later](LICENSE). You are responsible for how you use the content
+sources you configure.

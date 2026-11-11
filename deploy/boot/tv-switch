@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# tv-switch — choisit le programme lancé par défaut au démarrage de la TV.
+# tv-switch — choose which program the TV boots by default.
 #
-#   tv-switch            affiche le choix actuel
-#   tv-switch v1|v2      change le choix par défaut
-#   tv-switch v2 --now   change et redémarre tout de suite la session graphique
+#   tv-switch            show the current default
+#   tv-switch v1|v2      change the default
+#   tv-switch v2 --now   change it and restart the graphical session right away
 set -eu
 
 CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/rewind"
@@ -13,19 +13,19 @@ current() { cat "$DEFAULT_FILE" 2>/dev/null || echo v1; }
 
 case "${1:-}" in
   "")
-    echo "Programme par défaut : $(current)" ;;
+    echo "Default program: $(current)" ;;
   v1|v2)
     mkdir -p "$CONF_DIR"
     echo "$1" > "$DEFAULT_FILE"
-    echo "Programme par défaut : $1"
+    echo "Default program: $1"
     if [ "${2:-}" = "--now" ]; then
-      # Fermer la session graphique en cours ramène au menu de démarrage, qui
-      # lance alors le nouveau choix par défaut.
+      # Ending the current graphical session brings back the boot menu, which
+      # then starts the new default.
       pkill -x Xorg 2>/dev/null || true
       pkill -x cage 2>/dev/null || true
-      echo "Session graphique relancée."
+      echo "Graphical session restarted."
     fi ;;
   *)
-    echo "Usage : tv-switch [v1|v2] [--now]" >&2
+    echo "Usage: tv-switch [v1|v2] [--now]" >&2
     exit 2 ;;
 esac

@@ -1,12 +1,12 @@
 """
-Emplacements des fichiers de REWIND.
+Where REWIND keeps its files.
 
-Tout est surchargeable par variable d'environnement, sinon on suit les
-conventions XDG (Linux comme macOS) :
+Everything can be overridden by environment variable; otherwise XDG
+conventions are used (Linux and macOS alike):
 
-    REWIND_DATA_DIR    ~/.local/share/rewind   base SQLite, affiches, imports…
+    REWIND_DATA_DIR    ~/.local/share/rewind   SQLite database, posters, imports…
     REWIND_CONFIG_DIR  ~/.config/rewind        config.toml
-    REWIND_MEDIA_DIR   <data>/media            films et séries
+    REWIND_MEDIA_DIR   <data>/media            movies and series
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ class Paths:
 
     @property
     def import_v1(self) -> Path:
-        """Dernier instantané importé depuis la v1 (voir tools/import_v1.py)."""
+        """Latest snapshot imported from v1 (see tools/import_v1.py)."""
         return self.data / "import" / "v1"
 
     @classmethod

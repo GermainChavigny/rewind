@@ -1,0 +1,51 @@
+[44m[2J[H[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[H[H[44m[1;37m P100  REWIND  TÉLÉTEXTE        [1;33mmer. 11 nov.  20:27:04[44m                          [0m
+[44m[44m                                                                                [0m
+[44m  [30;43m  R E W I N D  [44m[1;36m  video system[44m                                                 [0m
+[44m[44m                                                                                [0m
+[44m  [1;36mCHOISISSEZ VOTRE PROGRAMME[44m                                                    [0m
+[44m[44m                                                                                [0m
+[44m  [1;37m  1 ....... REWIND v1   (version actuelle) [44m                                   [0m
+[44m  [30;46m  2 ....... REWIND v2   (en développement) [44m                                   [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m  [1;33mDémarrage de v2 dans 2 s ...[44m                                                  [0m
+[44m[44m                                                                                [0m
+[44m  [1;37mPar défaut : v2   (changer : tv-switch v1|v2)[44m                                 [0m
+[H[44m[1;37m P100  REWIND  TÉLÉTEXTE        [1;33mmer. 11 nov.  20:27:04[44m                          [0m
+[44m[44m                                                                                [0m
+[44m  [30;43m  R E W I N D  [44m[1;36m  video system[44m                                                 [0m
+[44m[44m                                                                                [0m
+[44m  [1;36mCHOISISSEZ VOTRE PROGRAMME[44m                                                    [0m
+[44m[44m                                                                                [0m
+[44m  [30;46m  1 ....... REWIND v1   (version actuelle) [44m                                   [0m
+[44m  [1;37m  2 ....... REWIND v2   (en développement) [44m                                   [0m
+[44m[44m                                                                                [0m
+[44m[44m                                                                                [0m
+[44m  [1;33mFlèches puis OK pour lancer[44m                                                   [0m
+[44m[44m                                                                                [0m
+[44m  [1;37mPar défaut : v2   (changer : tv-switch v1|v2)[44m                                 [0m
+[0m[2J[HLAUNCH v1

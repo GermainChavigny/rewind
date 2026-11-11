@@ -1,11 +1,11 @@
-# Feuille de route
+# Roadmap
 
-| Phase | Contenu | État |
+| Phase | Scope | Status |
 |---|---|---|
-| 0 | Socle du dépôt, menu de démarrage v1/v2, import des données v1 | ✅ |
-| 1 | Backend : configuration, SQLite, système de modules, API d'admin | ⏳ |
-| 2 | Interface TV (Svelte) fidèle à la v1 : chaînes, lecteur, réveil, météo, HUD | |
-| 3 | Films, séries, téléchargements, Movie Advisor | |
-| 4 | Admin sur téléphone : assistant de premier lancement, réglages, touches | |
-| 5 | `install.sh`, kiosque cage + Chromium, mises à jour | |
-| 6 | Bonus : commande vocale, HDMI-CEC, image disque | |
+| 0 | Repository base, v1/v2 boot menu, v1 data import | ✅ |
+| 1 | Backend: configuration, SQLite, module system, admin API | ⏳ |
+| 2 | TV interface (Svelte) faithful to v1: channels, player, alarm, weather, HUD | |
+| 3 | Movies, series, downloads, Movie Advisor | |
+| 4 | Phone admin: first-run wizard, settings, remote key learning | |
+| 5 | `install.sh`, cage + Chromium kiosk, updates | |
+| 6 | Extras: voice commands, HDMI-CEC, disk image | |

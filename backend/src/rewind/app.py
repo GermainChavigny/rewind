@@ -1,4 +1,4 @@
-"""Application FastAPI : API + (plus tard) frontend compilé, sur un seul port."""
+"""FastAPI application: API + (later) the built frontend, on a single port."""
 
 from __future__ import annotations
 

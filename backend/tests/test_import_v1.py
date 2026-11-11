@@ -8,7 +8,7 @@ from rewind.tools.import_v1 import import_v1
 
 
 def _tree_fingerprint(root):
-    """Empreinte (chemin, taille, mtime, contenu) de toute une arborescence."""
+    """Fingerprint (path, size, mtime, content) of a whole tree."""
     out = {}
     for p in sorted(root.rglob("*")):
         if p.is_file():
@@ -42,7 +42,7 @@ def test_import_never_touches_v1(v1, paths):
     tv_data, movies = v1
     before = (_tree_fingerprint(tv_data), _tree_fingerprint(movies))
     report = import_v1(tv_data, movies, paths)
-    import_v1(tv_data, movies, paths)  # relançable
+    import_v1(tv_data, movies, paths)  # safe to re-run
     assert report.ok, report.summary()
     assert (_tree_fingerprint(tv_data), _tree_fingerprint(movies)) == before
 
