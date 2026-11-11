@@ -121,6 +121,8 @@ class Channel(_Model):
 class LibraryConfig(_Model):
     enabled: bool = True
     download_slots: int = Field(default=3, ge=1, le=10)
+    # BitTorrent listen port; the magnet probe uses port + 8.
+    torrent_port: int = Field(default=6891, ge=1024, le=65000)
 
 
 class TmdbConfig(_Model):
@@ -144,6 +146,9 @@ class IndexerConfig(_Model):
     indexer: str = "all"
     min_seeders: int = 1
     max_size_gb: float = 6
+    timeout_s: float = 15
+    # systemd user unit started when the indexer doesn't answer (e.g. "jackett.service").
+    systemd_unit: str | None = None
 
 
 class AdvisorProvider(_Model):

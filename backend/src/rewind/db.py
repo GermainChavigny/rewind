@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -86,6 +87,9 @@ def now() -> int:
 class Database:
     def __init__(self, path: Path):
         self.path = path
+        # Read-modify-write of a media row (patch_media) must not interleave
+        # between the job threads and the API.
+        self._lock = threading.RLock()
         path.parent.mkdir(parents=True, exist_ok=True)
         with self.tx() as conn:
             conn.execute("PRAGMA journal_mode = WAL")
@@ -229,19 +233,25 @@ class Database:
         if conn is not None:
             conn.execute(sql, args)
         else:
-            with self.tx() as c:
+            with self._lock, self.tx() as c:
                 c.execute(sql, args)
 
     def patch_media(self, media_id: str, fields: dict) -> dict | None:
-        """Update some fields of an item (columns or JSON data)."""
-        with self.tx() as conn:
+        """Update some fields of an item (columns or JSON data); None values are dropped."""
+        with self._lock, self.tx() as conn:
             row = conn.execute("SELECT * FROM media WHERE id = ?", (media_id,)).fetchone()
             if not row:
                 return None
             item = self._media_row(row)
             item.update(fields)
+            item = {k: v for k, v in item.items() if v is not None or k in MEDIA_COLUMNS}
             self.upsert_media(item, conn)
         return item
+
+    def delete_media(self, media_id: str) -> None:
+        """Delete an item (and, by cascade, a series' episodes and packs)."""
+        with self._lock, self.tx() as conn:
+            conn.execute("DELETE FROM media WHERE id = ?", (media_id,))
 
     # --- advisor blacklist --------------------------------------------------
 

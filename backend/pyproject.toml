@@ -9,6 +9,11 @@ dependencies = [
   "uvicorn>=0.32",
   "httpx>=0.27",
   "tomli-w>=1.0",
+  # BitTorrent downloads. No wheel for macOS + Python 3.13: downloads are then
+  # unavailable (the TV runs Linux).
+  "libtorrent>=2.0; sys_platform == 'linux'",
+  # Re-times downloaded subtitles on the soundtrack.
+  "ffsubsync>=0.4",
 ]
 
 [project.scripts]

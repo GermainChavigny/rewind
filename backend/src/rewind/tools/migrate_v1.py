@@ -137,6 +137,8 @@ def config_from_v1(snap: Path, report: MigrationReport) -> Config:
     cfg.opensubtitles.api_key = osub.get("apiKey") or ""
     cfg.opensubtitles.username = osub.get("username") or ""
     cfg.opensubtitles.password = osub.get("password") or ""
+    # v1 restarted Jackett through its systemd user unit when it stopped answering.
+    unit = "jackett.service" if "jackett.service" in api_py else None
     for ix in secrets.get("indexers") or []:
         if ix.get("url"):
             flt = ix.get("filter") or {}
@@ -148,6 +150,7 @@ def config_from_v1(snap: Path, report: MigrationReport) -> Config:
                     indexer=ix.get("indexer") or "all",
                     min_seeders=flt.get("minSeeders", 1),
                     max_size_gb=flt.get("maxSizeGb", 6),
+                    systemd_unit=unit,
                 )
             )
     providers: list[AdvisorProvider] = []
@@ -194,7 +197,8 @@ def config_from_v1(snap: Path, report: MigrationReport) -> Config:
 
 # --- database ----------------------------------------------------------------------
 
-_DROP_KEYS = {"stagingFile"}  # absolute v1 paths, meaningless for v2
+_DROP_KEYS = {"stagingFile", "stagingFiles"}  # absolute v1 paths, meaningless for v2
+_UNFINISHED = {"queued", "downloading", "fetching-subs", "transcoding"}
 
 
 def media_from_v1(entry: dict, existing_ids: set[str]) -> dict:
@@ -217,6 +221,9 @@ def media_from_v1(entry: dict, existing_ids: set[str]) -> dict:
         title=item.get("title") or item["id"],
         status=item.get("status") or "ready",
     )
+    if item["status"] in _UNFINISHED:
+        # v1 may still be downloading it: v2 must not fetch it a second time.
+        item.update(status="error", error="interrupted (imported from v1)")
     return item
 
 
