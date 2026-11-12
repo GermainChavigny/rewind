@@ -15,6 +15,7 @@ from rewind import __version__
 from rewind.config import ConfigStore
 from rewind.context import AppContext
 from rewind.db import Database
+from rewind.learn import KeyLearner
 from rewind.library.service import LibraryService
 from rewind.paths import Paths
 from rewind.routes import admin, core, devices, library
@@ -49,6 +50,7 @@ def create_app(
     app.state.ctx = ctx
     app.state.weather = WeatherService(http)
     app.state.library = library_service
+    app.state.learner = KeyLearner()
 
     @app.get("/api/health")
     def health() -> dict:
@@ -56,6 +58,7 @@ def create_app(
 
     for module in (core, devices, library, admin):
         app.include_router(module.router)
+    app.include_router(admin.remote)
 
     # The built TV UI (frontend/dist), served on the same port as the API.
     dist = frontend_dir()
