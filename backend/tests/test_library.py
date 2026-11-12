@@ -328,3 +328,14 @@ def test_config_store_roundtrip_new_fields(tmp_path):
     again = ConfigStore(tmp_path / "c.toml").get()
     assert again.indexers[0].systemd_unit == "jackett.service"
     assert again.library.torrent_port == 6891
+
+
+def test_local_advisor_needs_no_key():
+    from rewind.config import AdvisorProvider
+    from rewind.library.advisor import Provider
+
+    local = AdvisorProvider(name="Ollama", kind="openai", base_url="http://127.0.0.1:11434/v1",
+                            model="llama3.2")  # fmt: skip
+    remote = AdvisorProvider(name="X", kind="openai", base_url="https://api.x.ai/v1", model="m")
+    assert Provider(local, None).available()
+    assert not Provider(remote, None).available()

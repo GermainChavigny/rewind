@@ -47,7 +47,7 @@ export const ACTION_GROUPS: ActionGroup[] = [
   },
   {
     title: 'Télé',
-    actions: [{ id: 'tv_power', label: 'Allumer / éteindre (Mute)' }],
+    actions: [{ id: 'tv_power', label: 'Allumer / éteindre' }],
   },
   {
     title: 'Lecture',
@@ -92,4 +92,64 @@ export function avOffsetText(ms: number): string {
   if (!ms) return 'Son et image synchronisés (aucun décalage).';
   const abs = Math.abs(ms);
   return ms > 0 ? `Le son est retardé de ${abs} ms.` : `Le son est avancé de ${abs} ms.`;
+}
+
+/** Alarm chimes (frontend/public/audio/chimes/<id>.mp3, made by scripts/make-chimes.py). */
+export const CHIMES: { id: string; label: string; description: string }[] = [
+  { id: 'classic', label: 'Classique', description: 'La sonnerie douce de la v1' },
+  { id: 'bells', label: 'Carillon', description: 'Trois cloches claires' },
+  { id: 'musicbox', label: 'Boîte à musique', description: 'Une petite mélodie' },
+  { id: 'dawn', label: 'Aube', description: 'Un accord chaud qui enfle' },
+  { id: 'drops', label: 'Gouttes', description: 'Des notes de marimba' },
+  { id: 'none', label: 'Aucune', description: 'La chaîne seulement' },
+];
+
+/** Audio port the A/V offset was last applied to live (restored on Cancel). */
+export const liveAudio: { port: string | null } = { port: null };
+
+export interface ProviderPreset {
+  id: string;
+  name: string;
+  kind: 'gemini' | 'openai';
+  base_url: string | null;
+  model: string;
+  keyUrl: string | null;
+  note: string;
+}
+
+/** AI providers for the Movie Advisor: Gemini, or any OpenAI-compatible API. */
+export const PROVIDERS: ProviderPreset[] = [
+  { id: 'gemini', name: 'Gemini', kind: 'gemini', base_url: null, model: 'gemini-2.5-flash',
+    keyUrl: 'https://aistudio.google.com/apikey', note: 'Google · gratuit pour un usage personnel' },
+  { id: 'groq', name: 'Groq', kind: 'openai', base_url: 'https://api.groq.com/openai/v1',
+    model: 'llama-3.3-70b-versatile', keyUrl: 'https://console.groq.com/keys', note: 'Très rapide · offre gratuite' },
+  { id: 'mistral', name: 'Mistral', kind: 'openai', base_url: 'https://api.mistral.ai/v1',
+    model: 'mistral-small-latest', keyUrl: 'https://console.mistral.ai/api-keys', note: 'Français · offre gratuite' },
+  { id: 'openrouter', name: 'OpenRouter', kind: 'openai', base_url: 'https://openrouter.ai/api/v1',
+    model: 'openai/gpt-4o-mini', keyUrl: 'https://openrouter.ai/keys', note: 'Des centaines de modèles, une seule clé' },
+  { id: 'cerebras', name: 'Cerebras', kind: 'openai', base_url: 'https://api.cerebras.ai/v1',
+    model: 'llama-3.3-70b', keyUrl: 'https://cloud.cerebras.ai', note: 'Très rapide · offre gratuite' },
+  { id: 'openai', name: 'OpenAI', kind: 'openai', base_url: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini', keyUrl: 'https://platform.openai.com/api-keys', note: 'ChatGPT · payant' },
+  { id: 'deepseek', name: 'DeepSeek', kind: 'openai', base_url: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat', keyUrl: 'https://platform.deepseek.com/api_keys', note: 'Payant, très bon marché' },
+  { id: 'ollama', name: 'Ollama (local)', kind: 'openai', base_url: 'http://127.0.0.1:11434/v1',
+    model: 'llama3.2', keyUrl: null, note: 'Sur votre ordinateur, sans clé' },
+]; // prettier-ignore
+
+/** The preset an advisor entry was made from, guessed from its kind and address. */
+export function presetOf(p: { kind?: string; base_url?: string | null }): ProviderPreset | null {
+  if (p.kind === 'gemini') return PROVIDERS[0];
+  return PROVIDERS.find((x) => x.base_url && p.base_url?.startsWith(x.base_url)) ?? null;
+}
+
+/** A local service address as the phone can open it (127.0.0.1 → the TV's address). */
+export function phoneUrl(url: string, tvHost: string): string {
+  try {
+    const u = new URL(url);
+    if (['127.0.0.1', 'localhost', '0.0.0.0'].includes(u.hostname)) u.hostname = tvHost;
+    return u.toString();
+  } catch {
+    return url;
+  }
 }

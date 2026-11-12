@@ -149,6 +149,11 @@ def _error_message(resp: httpx.Response) -> str:
     return str(message or f"error {resp.status_code}").split(". Learn more")[0].strip()[:200]
 
 
+def _is_local(url: str) -> bool:
+    host = httpx.URL(url).host if url.startswith("http") else ""
+    return host in ("127.0.0.1", "localhost") or host.startswith(("192.168.", "10."))
+
+
 class Provider:
     RETRIES = 2
     BACKOFF_S = 1.5
@@ -162,7 +167,9 @@ class Provider:
         return self.cfg.name
 
     def available(self) -> bool:
-        return bool(self.cfg.api_key and self.cfg.model)
+        # A local server (Ollama on this machine or the LAN) needs no key.
+        local = self.cfg.kind == "openai" and _is_local(self.cfg.base_url or "")
+        return bool(self.cfg.model and (self.cfg.api_key or local))
 
     def recommend(self, prompt: str) -> list[dict]:
         for attempt in range(self.RETRIES + 1):
@@ -221,7 +228,7 @@ class Provider:
                 payload["response_format"] = {"type": "json_object"}
             data = self._post(
                 f"{(cfg.base_url or '').rstrip('/')}/chat/completions",
-                {"Authorization": f"Bearer {cfg.api_key}"},
+                {"Authorization": f"Bearer {cfg.api_key}"} if cfg.api_key else {},
                 payload,
             )
             return data["choices"][0]["message"]["content"]

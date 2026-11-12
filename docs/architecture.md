@@ -124,3 +124,23 @@ by the project owner. The logo fonts (Exo 2, Oswald, Libre Bodoni, Cinzel,
 Kaushan Script, Silkscreen, Doto, Audiowide) are SIL OFL fonts from Google
 Fonts, bundled in `frontend/public/fonts`. `frontend/dev/logos.html` (dev
 server only) shows the 18 logos under the references, `?name=` to try a name.
+
+## Phone admin, virtual remote, TV events
+
+- `/admin/` (phone settings) and `/remote/` (virtual remote) are separate Vite
+  pages next to the TV UI.
+- The TV page listens to `GET /api/tv/events` (Server-Sent Events, `events.py`):
+  virtual remote presses (`POST /api/remote/press`, same actions as the keymap),
+  the A/V sync test (flash + beep, `AvSyncTest.svelte`) and chime previews,
+  all sent from the phone. Key learning still uses polling (`/api/remote/learn`).
+- The virtual remote layout (grid cells per action) is stored in the database
+  (`kv.remote_layout`); channel keys show the channel's retro logo.
+- `hardware.py` lists video connectors/modes (DRM sysfs) and audio output ports
+  (`pactl`), and applies the A/V offset live (`pactl set-port-latency-offset`)
+  on save and while tuning; the video mode is applied at session start
+  (`deploy/kiosk/xinitrc-v2`).
+- `checks.py`: the admin "Test" buttons (TMDB, OpenSubtitles, Jackett, AI
+  providers, Shelly plug) and AI model lists, run with the settings as typed.
+- Alarm chimes: `frontend/public/audio/chimes/*.mp3`. `classic` is the v1 chime;
+  the others are synthesised by `scripts/make-chimes.py` (no third-party audio).
+  With a chime, the alarm works without an alarm channel.

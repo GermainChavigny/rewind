@@ -7,6 +7,7 @@
 <script lang="ts">
   import { onDestroy, onMount, type Component } from 'svelte';
   import { adminApi, type Cfg, NeedsPin, rememberPin, savedPin, type Status } from './api';
+  import { liveAudio } from './helpers';
   import Alarm from './sections/Alarm.svelte';
   import Channels from './sections/Channels.svelte';
   import Library from './sections/Library.svelte';
@@ -93,7 +94,7 @@
       case 'place':
         return status.weather ? 'on' : 'todo';
       case 'alarm':
-        return cfg.channels.some((c: Cfg) => c.alarm) ? 'on' : 'todo';
+        return cfg.alarm.chime !== 'none' || cfg.channels.some((c: Cfg) => c.alarm) ? 'on' : 'todo';
       case 'picture':
         return 'on';
       case 'library':
@@ -110,7 +111,13 @@
   }
 
   function cancel() {
-    if (snapshot) cfg = JSON.parse(snapshot);
+    if (snapshot) {
+      const saved = JSON.parse(snapshot);
+      // The A/V offset may have been tried live: put the saved one back.
+      if (liveAudio.port && saved.audio.av_offset_ms !== cfg?.audio.av_offset_ms)
+        void adminApi.avOffset(liveAudio.port, saved.audio.av_offset_ms).catch(() => {});
+      cfg = saved;
+    }
     section = null;
     window.scrollTo(0, 0);
   }
@@ -188,8 +195,8 @@
           <path d="M4 50 H96 M12 27 H88 M12 73 H88" />
         </g>
       </svg>
-      <span class="word">RE</span>
-      <span class="word">WIND</span>
+      <span class="word">REWIND</span>
+      <span class="tag">VIDEO SYSTEM</span>
     </div>
     <div class="side">
       <span class="title">Réglages</span>
@@ -271,6 +278,11 @@
         <button class="link" onclick={() => open('security')}>Choisir un code</button>
       </div>
     {/if}
+    <a class="remote-btn" href="/remote/" target="_blank" rel="noopener">
+      <span class="r-led"></span>
+      <span class="r-text"><strong>Télécommande virtuelle</strong><small>Pilotez la télé depuis ce téléphone</small></span>
+      <span class="r-arrow">↗</span>
+    </a>
     <nav class="menu">
       {#each MENU as id (id)}
         {@const lamp = lampOf(id)}
@@ -335,12 +347,19 @@
   .word {
     position: relative;
     display: block;
-    font: 34px/1 var(--cond);
-    letter-spacing: 0.32em;
+    font: 36px/1 var(--cond);
+    letter-spacing: 0.14em;
     color: var(--yellow);
     -webkit-text-stroke: 1.5px #000;
     paint-order: stroke fill;
     text-shadow: 3px 3px 0 #000;
+  }
+  .tag {
+    position: relative;
+    display: block;
+    margin-top: 4px;
+    font: 13px/1 'Admin Pixel', monospace;
+    letter-spacing: 0.12em;
   }
   .side {
     flex: 1;
@@ -397,6 +416,47 @@
   }
   .m-label {
     text-transform: uppercase;
+  }
+  /* Not a settings button: a black plastic remote-like bar. */
+  .remote-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 14px 16px;
+    border-radius: 22px;
+    background: linear-gradient(90deg, #232326, #3a3a3f 50%, #232326);
+    color: #f2f2f2;
+    text-decoration: none;
+    font-weight: normal;
+    box-shadow:
+      inset 0 2px 0 #55555b,
+      inset 0 -3px 0 #111,
+      4px 4px 0 rgba(0, 0, 0, 0.45);
+  }
+  .r-led {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ff3030;
+    box-shadow: 0 0 8px #ff3030;
+  }
+  .r-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .r-text strong {
+    font: 19px var(--cond);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .r-text small {
+    font-size: 12px;
+    color: #bbb;
+  }
+  .r-arrow {
+    font-size: 22px;
   }
   .legend {
     display: flex;

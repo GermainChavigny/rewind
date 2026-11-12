@@ -22,8 +22,9 @@ class Module:
     description: str = ""
 
 
-def _has_alarm_channel(c: Config) -> bool:
-    return any(ch.alarm for ch in c.channels)
+def _alarm_ready(c: Config) -> bool:
+    # A chime alone is enough to wake up; the alarm channel is optional.
+    return c.alarm.chime != "none" or any(ch.alarm for ch in c.channels)
 
 
 def _power_ready(c: Config) -> bool:
@@ -36,7 +37,7 @@ MODULES: dict[str, Module] = {
     m.id: m
     for m in [
         Module("channels", "Channels", lambda c: bool(c.channels), "YouTube playlist channels"),
-        Module("alarm", "Alarm", _has_alarm_channel, "Progressive alarm on a channel"),
+        Module("alarm", "Alarm", _alarm_ready, "Progressive alarm: chime, then a channel"),
         Module("power", "TV power", _power_ready, "Turn the TV on/off via a smart plug"),
         Module(
             "weather",

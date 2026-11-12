@@ -74,12 +74,16 @@ class Tv {
   private timers: Record<string, ReturnType<typeof setTimeout>> = {};
   private lastAlarmMinute: string | null = null;
   private stopRinging: (() => void) | null = null;
+  /** A/V sync test running until this time (ms), 0 = off. */
+  avTestUntil = $state(0);
+  private preview: HTMLAudioElement | null = null;
 
   // --- boot -------------------------------------------------------------------
 
   async init(): Promise<void> {
     setInterval(() => (this.now = new Date()), 1000);
     setInterval(() => void learn.pending().then((r) => (this.learning = r.action)).catch(() => {}), 1000);
+    this.listenEvents();
     while (!this.ready) {
       try {
         await this.load();
@@ -157,6 +161,13 @@ class Tv {
     if (this.overlay === 'keyboard' && /^([a-z0-9 ]|Backspace|Enter|Escape)$/i.test(event.key)) return;
     if (!action) return;
     event.preventDefault();
+    this.runAction(action);
+  }
+
+  /** What a remote action does (a key press, or the phone's virtual remote). */
+  runAction(action: Action): void {
+    if (this.ringing) return this.stopAlarm();
+    this.avTestUntil = 0;
     if (action !== 'tv_power' && !this.tvOn) void this.setPower(true);
 
     const n = channelNumber(action);
@@ -392,36 +403,77 @@ class Tv {
     void this.ring();
   }
 
-  /** Progressive alarm: chime fades in, then the alarm channel fades in. */
+  /**
+   * Progressive alarm: the chime fades in (a safety net if the video is
+   * silent), then the alarm channel fades in. Either one may be missing.
+   */
   async ring(): Promise<void> {
     const cfg = this.ui!.alarm;
     const number = this.channels.findIndex((c) => c.alarm) + 1;
-    if (!number) return;
+    const chimeId = cfg.chime && cfg.chime !== 'none' ? cfg.chime : null;
+    if (!number && !chimeId) return;
     await this.setPower(true);
     this.ringing = true;
     const target = this.volume || stepToVolume(VOLUME_STEPS / 2);
-    this.selectChannel(number);
+    if (number) this.selectChannel(number);
     this.youtube?.setVolume(0);
 
-    const chime = new Audio('audio/alarm.wav');
-    chime.loop = true;
-    chime.volume = 0;
-    chime.play().catch(() => {});
+    const chime = chimeId ? chimeAudio(chimeId) : null;
+    if (chime) {
+      chime.loop = true;
+      chime.volume = 0;
+      chime.play().catch(() => {});
+    }
+    const ramp = (elapsed: number, over: number) => (over > 0 ? Math.min(1, elapsed / over) : 1);
     const start = Date.now();
     const tick = setInterval(() => {
       const elapsed = (Date.now() - start) / 1000;
       if (elapsed >= cfg.max_duration_s) return this.stopAlarm();
-      chime.volume = Math.min(1, elapsed / cfg.sound_ramp_s);
-      if (elapsed >= cfg.video_delay_s) {
-        const ratio = Math.min(1, (elapsed - cfg.video_delay_s) / cfg.video_ramp_s);
-        this.youtube?.setVolume(ratio * target);
+      if (chime) chime.volume = ramp(elapsed, cfg.sound_ramp_s);
+      if (number && elapsed >= cfg.video_delay_s) {
+        this.youtube?.setVolume(ramp(elapsed - cfg.video_delay_s, cfg.video_ramp_s) * target);
       }
     }, 100);
     this.stopRinging = () => {
       clearInterval(tick);
-      chime.pause();
+      chime?.pause();
       this.youtube?.setVolume(this.volume);
     };
+  }
+
+  // --- events from the phone (virtual remote, sync test, chime preview) ---------------
+
+  private listenEvents(): void {
+    const source = new EventSource('/api/tv/events');
+    source.onmessage = (message) => {
+      let event: { type: string; action?: string; chime?: string };
+      try {
+        event = JSON.parse(message.data);
+      } catch {
+        return;
+      }
+      wakeAudio();
+      if (event.type === 'action' && event.action) this.runAction(event.action as Action);
+      else if (event.type === 'avtest') this.startAvTest();
+      else if (event.type === 'avtest_stop') this.avTestUntil = 0;
+      else if (event.type === 'chime' && event.chime) this.previewChime(event.chime);
+      else if (event.type === 'chime_stop') this.preview?.pause();
+    };
+    // EventSource reconnects by itself after a backend restart.
+  }
+
+  startAvTest(seconds = 60): void {
+    if (!this.tvOn) void this.setPower(true);
+    this.avTestUntil = Date.now() + seconds * 1000;
+  }
+
+  /** Plays a chime once on the TV, at the TV volume (alarm settings preview). */
+  previewChime(id: string): void {
+    this.preview?.pause();
+    if (id === 'none') return;
+    this.preview = chimeAudio(id);
+    this.preview.volume = Math.max(0.2, this.volume / 100);
+    this.preview.play().catch(() => {});
   }
 
   stopAlarm(): void {
@@ -491,3 +543,7 @@ function scrollHovered(direction: 1 | -1): void {
 }
 
 export const tv = new Tv();
+
+function chimeAudio(id: string): HTMLAudioElement {
+  return new Audio(`audio/chimes/${id}.mp3`);
+}

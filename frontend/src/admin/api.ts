@@ -19,6 +19,25 @@ export interface Place {
   longitude: number;
 }
 
+export interface CheckResult {
+  ok: boolean;
+  message: string;
+}
+
+export interface Hardware {
+  displays: { name: string; connected: boolean; modes: string[] }[];
+  audio: {
+    card: string;
+    card_description: string;
+    name: string;
+    description: string;
+    available: boolean;
+    offset_ms: number;
+  }[];
+}
+
+export type CheckService = 'tmdb' | 'opensubtitles' | 'indexer' | 'advisor' | 'power';
+
 export class NeedsPin extends Error {}
 
 const PIN_KEY = 'rewind-admin-pin';
@@ -71,6 +90,13 @@ export const adminApi = {
   learnState: () => call<{ action: string | null; key: string | null; waiting: boolean }>('GET', '/api/admin/learn'),
   cancelLearn: () => call<unknown>('DELETE', '/api/admin/learn'),
   geocode: (q: string) => call<Place[]>('GET', `/api/admin/geocode?q=${encodeURIComponent(q)}`),
+  check: (service: CheckService, config: Cfg, index = 0) =>
+    call<CheckResult>('POST', '/api/admin/check', { service, index, config }),
+  models: (index: number, config: Cfg) => call<string[]>('POST', '/api/admin/models', { index, config }),
+  hardware: () => call<Hardware>('GET', '/api/admin/hardware'),
+  avOffset: (port: string, ms: number) => call<{ applied: boolean }>('POST', '/api/admin/av-offset', { port, ms }),
+  tvEvent: (type: 'avtest' | 'avtest_stop' | 'chime' | 'chime_stop', chime?: string) =>
+    call<{ delivered: number }>('POST', '/api/admin/tv-event', { type, chime }),
   completeSetup: () => call<unknown>('POST', '/api/admin/setup/complete'),
 };
 

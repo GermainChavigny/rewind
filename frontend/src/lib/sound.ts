@@ -52,3 +52,27 @@ export function reveal(root: HTMLElement | null | undefined, selector = REVEAL, 
     setTimeout(() => blip('tick'), delay); // one tick per element, as v1
   });
 }
+
+/**
+ * A/V sync test beep: schedules a short 1 kHz beep and returns in how many ms
+ * the browser will actually output it (its own audio latency included), so
+ * the flash can be shown at that moment. Only the system/TV lag remains,
+ * which the A/V offset setting compensates. Null when audio is not running.
+ */
+export function syncBeep(): number | null {
+  wakeAudio();
+  if (!ctx || ctx.state !== 'running') return null;
+  const lead = 0.1;
+  const at = ctx.currentTime + lead;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.frequency.value = 1000;
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(0.5, at + 0.003);
+  gain.gain.setValueAtTime(0.5, at + 0.08);
+  gain.gain.linearRampToValueAtTime(0, at + 0.085);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(at);
+  osc.stop(at + 0.1);
+  return (lead + (ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000;
+}

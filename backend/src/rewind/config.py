@@ -103,6 +103,8 @@ class AlarmConfig(_Model):
     video_delay_s: int = 20  # before the alarm channel starts fading in
     video_ramp_s: int = 15
     max_duration_s: int = 300
+    # Chime played with the alarm (frontend/public/audio/chimes/<id>.wav); "none" = video only.
+    chime: str = Field(default="classic", pattern=r"^[a-z0-9-]{1,20}$")
 
 
 class Channel(_Model):

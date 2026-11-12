@@ -9,11 +9,15 @@ def test_modules_hidden_when_not_configured(make_client):
     client = make_client()
     states = {m["id"]: m["configured"] for m in client.get("/api/modules").json()}
     assert states == {
-        "channels": False, "alarm": False, "power": False, "weather": False, "library": True,
+        "channels": False, "alarm": True, "power": False, "weather": False, "library": True,
     }  # fmt: skip
-    assert client.get("/api/alarm").status_code == 404
+    # The alarm works with its chime alone; without chime nor channel it is hidden.
+    assert client.get("/api/alarm").status_code == 200
     assert client.get("/api/weather").status_code == 404
     assert client.post("/api/tv/power", json={"on": True}).status_code == 404
+    cfg = Config()
+    cfg.alarm.chime = "none"
+    assert make_client(cfg).get("/api/alarm").status_code == 404
 
 
 def test_channels_numbered(make_client):

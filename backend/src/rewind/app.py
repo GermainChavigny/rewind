@@ -11,10 +11,11 @@ import httpx
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from rewind import __version__
+from rewind import __version__, hardware
 from rewind.config import ConfigStore
 from rewind.context import AppContext
 from rewind.db import Database
+from rewind.events import EventBus
 from rewind.learn import KeyLearner
 from rewind.library.service import LibraryService
 from rewind.paths import Paths
@@ -51,6 +52,8 @@ def create_app(
     app.state.weather = WeatherService(http)
     app.state.library = library_service
     app.state.learner = KeyLearner()
+    app.state.events = EventBus()
+    app.state.apply_av = hardware.apply_av_offset
 
     @app.get("/api/health")
     def health() -> dict:
@@ -59,6 +62,7 @@ def create_app(
     for module in (core, devices, library, admin):
         app.include_router(module.router)
     app.include_router(admin.remote)
+    app.include_router(admin.tv)
 
     # The built TV UI (frontend/dist), served on the same port as the API.
     dist = frontend_dir()

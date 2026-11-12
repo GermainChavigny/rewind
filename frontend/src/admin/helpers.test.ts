@@ -32,3 +32,17 @@ describe('labels', () => {
     expect(avOffsetText(-120)).toBe('Le son est avancé de 120 ms.');
   });
 });
+
+describe('providers and links', () => {
+  it('finds the preset of a provider', async () => {
+    const { presetOf } = await import('./helpers');
+    expect(presetOf({ kind: 'gemini', base_url: null })?.id).toBe('gemini');
+    expect(presetOf({ kind: 'openai', base_url: 'https://api.mistral.ai/v1' })?.id).toBe('mistral');
+    expect(presetOf({ kind: 'openai', base_url: 'https://other.example/v1' })).toBeNull();
+  });
+  it('rewrites local addresses for the phone', async () => {
+    const { phoneUrl } = await import('./helpers');
+    expect(phoneUrl('http://127.0.0.1:9117', '192.168.1.12')).toBe('http://192.168.1.12:9117/');
+    expect(phoneUrl('http://nas.lan:9117/', '192.168.1.12')).toBe('http://nas.lan:9117/');
+  });
+});

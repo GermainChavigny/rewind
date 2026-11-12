@@ -14,7 +14,7 @@ export default defineConfig({
     target: 'es2022',
     assetsInlineLimit: 0,
     rollupOptions: {
-      input: { main: 'index.html', admin: 'admin/index.html' },
+      input: { main: 'index.html', admin: 'admin/index.html', remote: 'remote/index.html' },
     },
   },
   test: { include: ['src/**/*.test.ts'] },

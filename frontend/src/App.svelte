@@ -10,6 +10,7 @@
   import { onMount } from 'svelte';
   import AlarmOsd from './components/AlarmOsd.svelte';
   import AlarmScreen from './components/AlarmScreen.svelte';
+  import AvSyncTest from './components/AvSyncTest.svelte';
   import ChannelGrid from './components/ChannelGrid.svelte';
   import Difficulty from './components/Difficulty.svelte';
   import RetroCursor from './components/RetroCursor.svelte';
@@ -91,6 +92,7 @@
 <Stage layer={60}>
   {#if tv.osd === 'volume'}<VolumeOsd />{/if}
   {#if tv.osd === 'alarm' || tv.ringing}<AlarmOsd />{/if}
+  {#if tv.avTestUntil}<AvSyncTest />{/if}
 </Stage>
 
 <RetroCursor />

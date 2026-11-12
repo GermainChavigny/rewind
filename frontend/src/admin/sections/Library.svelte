@@ -3,7 +3,9 @@
   search, Movie Advisor), each with a lamp and a "where do I find my key?" note.
 -->
 <script lang="ts">
-  import type { Cfg } from '../api';
+  import { adminApi, type Cfg } from '../api';
+  import { phoneUrl, presetOf, PROVIDERS, type ProviderPreset } from '../helpers';
+  import TestButton from '../ui/TestButton.svelte';
   import Help from '../ui/Help.svelte';
   import Secret from '../ui/Secret.svelte';
   import Window from '../ui/Window.svelte';
@@ -20,13 +22,29 @@
     }); // prettier-ignore
   }
 
-  function addAdvisor(kind: 'gemini' | 'openrouter' | 'groq') {
-    const presets = {
-      gemini: { name: 'Gemini', kind: 'gemini', base_url: null, model: 'gemini-2.5-flash' },
-      openrouter: { name: 'OpenRouter', kind: 'openai', base_url: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini' },
-      groq: { name: 'Groq', kind: 'openai', base_url: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
-    }; // prettier-ignore
-    cfg.advisor.push({ ...presets[kind], api_key: '', json_mode: true });
+  function addAdvisor(pr: ProviderPreset) {
+    cfg.advisor.push({ name: pr.name, kind: pr.kind, base_url: pr.base_url, model: pr.model, api_key: '', json_mode: true });
+  }
+
+  function addCustom() {
+    cfg.advisor.push({ name: 'Mon IA', kind: 'openai', base_url: 'https://', model: '', api_key: '', json_mode: true });
+  }
+
+  let models = $state<Record<number, string[]>>({});
+  let modelError = $state<Record<number, string>>({});
+  let loadingModels = $state<number | null>(null);
+
+  async function loadModels(i: number) {
+    loadingModels = i;
+    modelError[i] = '';
+    try {
+      models[i] = await adminApi.models(i, cfg);
+      if (!models[i].length) modelError[i] = 'Aucun modèle proposé.';
+    } catch {
+      modelError[i] = 'Liste indisponible : vérifiez la clé.';
+    } finally {
+      loadingModels = null;
+    }
   }
 
   function slots(delta: number) {
@@ -69,6 +87,7 @@
         <li>Copiez la <strong>Clé d'API</strong> (la courte, pas le long « jeton d'accès »).</li>
       </ol>
     </Help>
+    <TestButton run={() => adminApi.check('tmdb', cfg)} />
   </Window>
 
   <Window title="Sous-titres" lamp={lampOf(has(cfg.opensubtitles.api_key))}>
@@ -89,6 +108,7 @@
     </Help>
     <label><span>Identifiant</span><input bind:value={cfg.opensubtitles.username} autocapitalize="off" autocomplete="off" /></label>
     <Secret bind:value={cfg.opensubtitles.password} label="Mot de passe" password />
+    <TestButton run={() => adminApi.check('opensubtitles', cfg)} />
   </Window>
 
   <Window title="Recherche de films" lamp={lampOf(cfg.indexers.some((i: Cfg) => has(i.api_key)))}>
@@ -105,7 +125,11 @@
         <Secret bind:value={ix.api_key} label="Clé API Jackett" />
         <Help label="Où trouver la clé Jackett ?">
           <ol>
-            <li>Sur le téléphone, ouvrez <code>http://&lt;adresse de la télé&gt;:9117</code> (la même adresse que cette page, port 9117).</li>
+            <li>
+              Ouvrez Jackett :
+              <a href={phoneUrl(ix.url, location.hostname)} target="_blank" rel="noreferrer">{phoneUrl(ix.url, location.hostname)}</a>
+              (nouvel onglet).
+            </li>
             <li>La <strong>API Key</strong> est en haut à droite : copiez-la.</li>
             <li>Ajoutez des sites avec <strong>+ Add indexer</strong> si la liste est vide.</li>
           </ol>
@@ -118,49 +142,78 @@
             sauf installation particulière ; videz le champ pour ne jamais le relancer.
           </p>
         </Help>
+        <TestButton run={() => adminApi.check('indexer', cfg, i)} />
         <button class="danger" onclick={() => cfg.indexers.splice(i, 1)}>Retirer</button>
       </div>
     {/each}
     <button onclick={addIndexer}>+ Ajouter Jackett</button>
   </Window>
 
-  <Window title="Movie Advisor" lamp={lampOf(cfg.advisor.some((p: Cfg) => has(p.api_key)))}>
+  <Window title="Movie Advisor" lamp={lampOf(cfg.advisor.some((p: Cfg) => has(p.api_key) || !presetOf(p)?.keyUrl))}>
     {#snippet help()}
       <p>
         Le Movie Advisor propose trois films selon vos envies, grâce à une intelligence artificielle. Ajoutez un ou
-        plusieurs fournisseurs : si le premier ne répond pas, REWIND essaie le suivant.
+        plusieurs fournisseurs : si le premier ne répond pas, REWIND essaie le suivant (dans l'ordre de la liste).
       </p>
-      <p>Gemini (Google) est gratuit pour un usage personnel : c'est le plus simple.</p>
+      <p>Le plus simple : <strong>Gemini</strong> (gratuit avec un compte Google) ou <strong>Groq</strong>.</p>
     {/snippet}
     {#each cfg.advisor as p, i (i)}
+      {@const preset = presetOf(p)}
       <div class="item">
-        <div class="row"><strong class="grow">{i + 1}. {p.name}</strong><button class="danger" onclick={() => cfg.advisor.splice(i, 1)}>Retirer</button></div>
-        <Secret bind:value={p.api_key} label="Clé API" />
-        {#if p.kind === 'gemini'}
-          <Help label="Où trouver ma clé Gemini ?">
+        <div class="row">
+          <strong class="grow">{i + 1}. {p.name}</strong>
+          <button class="danger" onclick={() => cfg.advisor.splice(i, 1)}>Retirer</button>
+        </div>
+        {#if preset}<p class="muted">{preset.note}</p>{/if}
+        {#if !preset || preset.keyUrl}
+          <Secret bind:value={p.api_key} label="Clé API" />
+        {/if}
+        {#if preset?.keyUrl}
+          <Help label="Où trouver ma clé {preset.name} ?">
             <ol>
-              <li>Ouvrez <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a> avec un compte Google.</li>
-              <li>Touchez <strong>Create API key</strong> et copiez la clé.</li>
+              <li>Ouvrez <a href={preset.keyUrl} target="_blank" rel="noreferrer">{preset.keyUrl.replace('https://', '')}</a> et connectez-vous (ou créez un compte).</li>
+              <li>Créez une clé (« Create API key ») et copiez-la ici.</li>
+              <li>Touchez <strong>Tester</strong> pour vérifier.</li>
             </ol>
           </Help>
-        {:else}
-          <Help label="Où trouver ma clé ?">
-            <ul>
-              <li>OpenRouter : <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">openrouter.ai/keys</a></li>
-              <li>Groq : <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer">console.groq.com/keys</a></li>
-            </ul>
-            <p>Tout service « compatible OpenAI » fonctionne : indiquez son adresse d'API ci-dessous.</p>
+        {:else if preset}
+          <Help label="Comment installer Ollama ?">
+            <p>
+              Ollama fait tourner un modèle sur votre ordinateur, sans compte ni clé. Installez-le depuis
+              <a href="https://ollama.com" target="_blank" rel="noreferrer">ollama.com</a>, puis téléchargez un modèle
+              (<code>ollama pull llama3.2</code>). Sur le PC de la télé, laissez l'adresse telle quelle.
+            </p>
           </Help>
+        {/if}
+        {#if !preset}
           <label><span>Adresse de l'API</span><input bind:value={p.base_url} autocapitalize="off" inputmode="url" /></label>
         {/if}
-        <label><span>Modèle</span><input bind:value={p.model} autocapitalize="off" /></label>
+        <label>
+          <span>Modèle</span>
+          {#if models[i]?.length}
+            <select bind:value={p.model}>
+              {#if !models[i].includes(p.model)}<option value={p.model}>{p.model}</option>{/if}
+              {#each models[i] as m (m)}<option value={m}>{m}</option>{/each}
+            </select>
+          {:else}
+            <input bind:value={p.model} autocapitalize="off" />
+          {/if}
+        </label>
+        <div class="row">
+          <button onclick={() => loadModels(i)} disabled={loadingModels === i}>
+            {loadingModels === i ? 'Chargement…' : '↻ Liste des modèles'}
+          </button>
+          {#if modelError[i]}<span class="bad">{modelError[i]}</span>{/if}
+        </div>
+        <TestButton run={() => adminApi.check('advisor', cfg, i)} />
       </div>
     {/each}
     <span class="label">Ajouter un fournisseur</span>
-    <div class="row">
-      <button onclick={() => addAdvisor('gemini')}>+ Gemini</button>
-      <button onclick={() => addAdvisor('openrouter')}>+ OpenRouter</button>
-      <button onclick={() => addAdvisor('groq')}>+ Groq</button>
+    <div class="presets">
+      {#each PROVIDERS as pr (pr.id)}
+        <button onclick={() => addAdvisor(pr)}><strong>+ {pr.name}</strong><small>{pr.note}</small></button>
+      {/each}
+      <button onclick={addCustom}><strong>+ Autre</strong><small>Toute API compatible OpenAI</small></button>
     </div>
   </Window>
 {/if}
@@ -184,6 +237,22 @@
   .stepper button {
     width: 52px;
     font-size: 22px;
+  }
+  .presets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .presets button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    padding: 8px 10px;
+  }
+  .presets small {
+    font: 11px Verdana, Geneva, sans-serif;
+    color: var(--muted);
   }
   .item {
     margin: 10px 0;

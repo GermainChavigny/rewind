@@ -27,6 +27,7 @@ export interface UiSettings {
     video_delay_s: number;
     video_ramp_s: number;
     max_duration_s: number;
+    chime: string; // audio/chimes/<id>.mp3, or 'none'
   };
   crt_effects: boolean;
 }

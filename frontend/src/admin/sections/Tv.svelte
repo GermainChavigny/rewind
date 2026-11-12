@@ -1,6 +1,7 @@
 <!-- TV power: no plug, or a Shelly smart plug that the Mute key switches. -->
 <script lang="ts">
-  import type { Cfg } from '../api';
+  import { adminApi, type Cfg } from '../api';
+  import TestButton from '../ui/TestButton.svelte';
   import Help from '../ui/Help.svelte';
   import Window from '../ui/Window.svelte';
 
@@ -47,5 +48,6 @@
         jamais.
       </p>
     </Help>
+    <TestButton label="Tester la prise" run={() => adminApi.check('power', cfg)} />
   {/if}
 </Window>
