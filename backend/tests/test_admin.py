@@ -1,4 +1,3 @@
-from rewind.config import Config
 from rewind.learn import KeyLearner
 from tests.conftest import sample_config
 
