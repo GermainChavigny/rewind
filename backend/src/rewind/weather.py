@@ -15,8 +15,31 @@ log = logging.getLogger(__name__)
 
 URL = "https://api.open-meteo.com/v1/forecast"
 CACHE_S = 15 * 60
-# Day periods shown in the forecast popup (local hour).
-PERIODS = [("morning", 9), ("afternoon", 15), ("evening", 21)]
+# Day periods of the forecast popup: (id, end hour, hour shown). Morning runs to noon.
+PERIODS = [("morning", 12, 9), ("afternoon", 18, 15), ("evening", 24, 21)]
+
+
+def upcoming_periods(local_now: datetime, count: int = 3) -> list[tuple[str, int, datetime]]:
+    """The next `count` periods, the current one first: (id, day offset, hour to show).
+
+    In the evening this is tonight, then tomorrow morning and afternoon; at
+    night (before 6) today's morning comes first. A period already under way
+    shows the coming hour, not the one gone by.
+    """
+    today = local_now.replace(minute=0, second=0, microsecond=0)
+    out: list[tuple[str, int, datetime]] = []
+    for offset in (0, 1):
+        day = today.replace(hour=0) + timedelta(days=offset)
+        for period_id, end, shown in PERIODS:
+            if day + timedelta(hours=end) <= local_now:
+                continue  # already over
+            at = day + timedelta(hours=shown)
+            if at <= local_now:
+                at = min(today + timedelta(hours=1), day + timedelta(hours=end - 1))
+            out.append((period_id, offset, at))
+            if len(out) == count:
+                return out
+    return out
 
 
 class WeatherUnavailable(Exception):
@@ -72,18 +95,28 @@ class WeatherService:
         # Header icon: next hour.
         idx = index_at(local_now + timedelta(hours=1))
         periods = []
-        for period_id, hour in PERIODS:
-            i = index_at(local_now.replace(hour=hour))
-            periods.append({"id": period_id, "code": codes[i], "temp": round(temps[i])})
+        for period_id, offset, at in upcoming_periods(local_now):
+            i = index_at(at)
+            periods.append(
+                {"id": period_id, "day": offset, "code": codes[i], "temp": round(temps[i])}
+            )
+        # The day summary follows the panels: tomorrow's once most of them are tomorrow.
+        day = 1 if sum(p["day"] for p in periods) * 2 > len(periods) else 0
         daily = payload.get("daily", {})
+
+        def daily_at(name: str, fallback: float) -> float:
+            values = daily.get(name) or []
+            return values[day] if len(values) > day else fallback
+
         return {
             "location": cfg.location_name,
             "code": codes[idx],
             "hour": times[idx][11:16],
             "day": {
-                "code": (daily.get("weather_code") or [codes[idx]])[0],
-                "hi": round((daily.get("temperature_2m_max") or [temps[idx]])[0]),
-                "lo": round((daily.get("temperature_2m_min") or [temps[idx]])[0]),
+                "offset": day,
+                "code": daily_at("weather_code", codes[idx]),
+                "hi": round(daily_at("temperature_2m_max", temps[idx])),
+                "lo": round(daily_at("temperature_2m_min", temps[idx])),
             },
             "periods": periods,
         }

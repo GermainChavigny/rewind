@@ -3,6 +3,7 @@
   field. Hidden until asked for.
 -->
 <script lang="ts">
+  import Glyph from '../../components/Glyph.svelte';
   import type { Snippet } from 'svelte';
 
   let { label, children }: { label: string; children: Snippet } = $props();
@@ -11,7 +12,7 @@
 
 <div class="help">
   <button class="link" aria-expanded={open} onclick={() => (open = !open)}>
-    {open ? '▾' : '▸'} {label}
+    <Glyph name={open ? 'caret-down' : 'caret-right'} /> {label}
   </button>
   {#if open}
     <div class="note">{@render children()}</div>

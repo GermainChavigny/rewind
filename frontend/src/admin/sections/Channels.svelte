@@ -4,6 +4,7 @@
   tiles add a channel.
 -->
 <script lang="ts">
+  import Glyph from '../../components/Glyph.svelte';
   import ChannelLogo from '../../components/ChannelLogo.svelte';
   import { type Cfg, slug } from '../api';
   import { playlistId } from '../helpers';
@@ -116,7 +117,7 @@
       <span class="label">Ce que diffuse la chaîne</span>
       <div class="choices">
         <button class:selected={ch.kind === 'youtube'} onclick={() => (ch.kind = 'youtube')}>
-          <span class="ic">▶ YouTube</span> <small>Une playlist en boucle</small>
+          <span class="ic"><Glyph name="play" /> YouTube</span> <small>Une playlist en boucle</small>
         </button>
         <button class:selected={ch.kind === 'library'} onclick={() => (ch.kind = 'library')}>
           <span class="ic"><Icon name="library" size={20} /> Vidéothèque</span> <small>Vos films et séries</small>
@@ -160,9 +161,9 @@
 
       <span class="label">Numéro</span>
       <div class="row">
-        <button onclick={() => move(-1)} disabled={editing === 0}>◀ {editing}</button>
+        <button onclick={() => move(-1)} disabled={editing === 0}><Glyph name="left" /> {editing}</button>
         <strong class="num">{editing + 1}</strong>
-        <button onclick={() => move(1)} disabled={editing === cfg.channels.length - 1}>{editing + 2} ▶</button>
+        <button onclick={() => move(1)} disabled={editing === cfg.channels.length - 1}>{editing + 2} <Glyph name="right" /></button>
       </div>
 
       <div class="row foot">

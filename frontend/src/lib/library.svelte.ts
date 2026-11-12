@@ -38,6 +38,16 @@ export function formatTime(seconds: number): string {
   return h ? `${pad2(h)}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
+/**
+ * "Watched / length" without seconds, short enough for one line of the side
+ * panel: "0h12 / 1h30", or "12 / 47 min" for anything under an hour.
+ */
+export function formatProgress(position: number, duration: number): string {
+  const min = (s: number) => Math.floor(Math.max(0, s || 0) / 60);
+  const hm = (s: number) => `${Math.floor(min(s) / 60)}h${pad2(min(s) % 60)}`;
+  return duration >= 3600 ? `${hm(position)} / ${hm(duration)}` : `${min(position)} / ${min(duration)} min`;
+}
+
 /** Status label and progress of an unfinished item (a library row or a job). */
 export function statusInfo(m: { status: string; progress?: Job['progress']; error?: string | null }): {
   label: string;

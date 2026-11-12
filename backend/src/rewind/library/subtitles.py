@@ -124,7 +124,9 @@ class OpenSubtitles:
         return out
 
     def _best(self, lang, movie_hash, imdb_id, tmdb_id, title, year, season, episode):
-        params: dict = {"languages": lang, "order_by": "download_count"}
+        # OpenSubtitles splits Portuguese and Chinese into regional variants.
+        code = {"pt": "pt-pt,pt-br", "zh": "zh-cn,zh-tw"}.get(lang, lang)
+        params: dict = {"languages": code, "order_by": "download_count"}
         if movie_hash:
             params["moviehash"] = movie_hash
         if season is not None:

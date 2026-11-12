@@ -25,8 +25,11 @@
   import ResultsScreen from './components/library/ResultsScreen.svelte';
   import SeriesScreen from './components/library/SeriesScreen.svelte';
   import SubtitleHud from './components/library/SubtitleHud.svelte';
+  import EndOfBroadcast from './components/setup/EndOfBroadcast.svelte';
+  import SettingsCorner from './components/setup/SettingsCorner.svelte';
+  import SetupQr from './components/setup/SetupQr.svelte';
   import { movie } from './lib/movie.svelte';
-  import { blip, wakeAudio } from './lib/sound';
+  import { blip, hoverTick, wakeAudio } from './lib/sound';
   import { tv } from './lib/tv.svelte';
 
   let youtube: HTMLElement;
@@ -51,11 +54,13 @@
 
   function click(e: MouseEvent) {
     wakeAudio();
-    if ((e.target as Element).closest('button')) blip('click');
+    const target = e.target as Element;
+    if (target.closest('button')) blip('click');
+    else if (!target.closest('a, input, select, textarea, label')) tv.clickPause();
   }
 </script>
 
-<svelte:window onkeydown={(e) => tv.onKey(e)} onclickcapture={click} onmousemove={moved} />
+<svelte:window onkeydown={(e) => tv.onKey(e)} onclickcapture={click} onmousemove={moved} onpointerover={hoverTick} />
 
 <div class="video">
   <div class="youtube"><div bind:this={youtube}></div></div>
@@ -85,6 +90,8 @@
   {/if}
   {#if tv.overlay === 'keyboard'}<KeyboardOverlay />{/if}
   {#if tv.overlay === 'weather'}<WeatherPopup />{/if}
+  {#if tv.welcome}<SettingsCorner />{/if}
+  {#if tv.overlay === 'setup'}<SetupQr />{/if}
 </Stage>
 
 <div class="veil" style:opacity={tv.darkness}></div>
@@ -94,6 +101,11 @@
   {#if tv.osd === 'alarm' || tv.ringing}<AlarmOsd />{/if}
   {#if tv.avTestUntil}<AvSyncTest />{/if}
 </Stage>
+
+{#if tv.shuttingDown}
+  <div class="blackout shutdown"></div>
+  <Stage layer={70}><EndOfBroadcast /></Stage>
+{/if}
 
 <RetroCursor />
 
@@ -139,6 +151,9 @@
   .blackout {
     z-index: 5;
     background: #000;
+  }
+  .blackout.shutdown {
+    z-index: 65;
   }
   .pause-dim {
     position: fixed;

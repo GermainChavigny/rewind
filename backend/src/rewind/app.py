@@ -11,7 +11,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from rewind import __version__, hardware
+from rewind import __version__, hardware, system
 from rewind.config import ConfigStore
 from rewind.context import AppContext
 from rewind.db import Database
@@ -19,7 +19,7 @@ from rewind.events import EventBus
 from rewind.learn import KeyLearner
 from rewind.library.service import LibraryService
 from rewind.paths import Paths
-from rewind.routes import admin, core, devices, library
+from rewind.routes import admin, core, devices, library, remote
 from rewind.weather import WeatherService
 
 log = logging.getLogger(__name__)
@@ -38,11 +38,12 @@ def create_app(
     )
 
     library_service = LibraryService(ctx)
+    library_service.start_jobs = start_jobs
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         log.info("REWIND %s — data: %s, config: %s", __version__, paths.data, paths.config)
-        if ctx.config.library.enabled and start_jobs:
+        if ctx.config.library.enabled:
             library_service.start()
         yield
         http.close()
@@ -52,8 +53,14 @@ def create_app(
     app.state.weather = WeatherService(http)
     app.state.library = library_service
     app.state.learner = KeyLearner()
-    app.state.events = EventBus()
+    app.state.events = EventBus()  # to the TV page
+    app.state.remote_events = EventBus()  # to the phone remotes
+    app.state.tv_report = None  # what the TV shows (routes/remote.py)
     app.state.apply_av = hardware.apply_av_offset
+    app.state.apply_display = hardware.apply_display
+    app.state.poweroff = system.poweroff  # replaced in tests: never turn the box off
+    # Settings saved but only applied at the next start (e.g. no X display).
+    app.state.restart_needed = set()
 
     @app.get("/api/health")
     def health() -> dict:
@@ -62,7 +69,8 @@ def create_app(
     for module in (core, devices, library, admin):
         app.include_router(module.router)
     app.include_router(admin.remote)
-    app.include_router(admin.tv)
+    app.include_router(remote.remote)
+    app.include_router(remote.tv)
 
     # The built TV UI (frontend/dist), served on the same port as the API.
     dist = frontend_dir()

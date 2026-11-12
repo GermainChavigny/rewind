@@ -5,6 +5,8 @@
   config; masked secrets go back as they came and the server keeps them.
 -->
 <script lang="ts">
+  import Brand from '../components/Brand.svelte';
+  import Glyph from '../components/Glyph.svelte';
   import { onDestroy, onMount, type Component } from 'svelte';
   import { adminApi, type Cfg, NeedsPin, rememberPin, savedPin, type Status } from './api';
   import { liveAudio } from './helpers';
@@ -35,6 +37,8 @@
     security: { label: 'Code secret', icon: 'lock', view: Security },
   };
   const MENU = Object.keys(VIEWS) as Section[];
+  /** Settings the backend could not apply live (status.restart_needed). */
+  const RESTART_LABELS: Record<string, string> = { display: 'La sortie vidéo et la résolution' };
   const WIZARD: { id: Section; title: string; intro: string }[] = [
     { id: 'place', title: 'Où êtes-vous ?', intro: 'Pour la météo affichée sur la télé.' },
     { id: 'tv', title: 'La télé', intro: 'REWIND peut allumer et éteindre la télé.' },
@@ -188,15 +192,14 @@
   <header class="brand">
     <div class="logo">
       <svg class="globe" viewBox="0 0 100 100" aria-hidden="true">
-        <g fill="none" stroke="#000" stroke-width="3">
+        <g fill="none" stroke="#a7b8c9" stroke-width="3">
           <circle cx="50" cy="50" r="46" />
           <ellipse cx="50" cy="50" rx="20" ry="46" />
           <ellipse cx="50" cy="50" rx="36" ry="46" />
           <path d="M4 50 H96 M12 27 H88 M12 73 H88" />
         </g>
       </svg>
-      <span class="word">REWIND</span>
-      <span class="tag">VIDEO SYSTEM</span>
+      <span class="mark"><Brand size={34} /></span>
     </div>
     <div class="side">
       <span class="title">Réglages</span>
@@ -236,7 +239,7 @@
             <li><Icon name={VIEWS[w.id].icon} size={28} /> {w.title}</li>
           {/each}
         </ol>
-        <div class="row end"><button class="primary" onclick={() => (step = 0)}>Commencer ▶</button></div>
+        <div class="row end"><button class="primary" onclick={() => (step = 0)}>Commencer <Glyph name="right" /></button></div>
       </Window>
     {:else if step < WIZARD.length}
       <Window title="Installation">
@@ -247,9 +250,9 @@
       {@const View = VIEWS[WIZARD[step].id].view}
       <View bind:cfg={cfg!} />
       <div class="bottom">
-        <button onclick={back}>◀ Retour</button>
+        <button onclick={back}><Glyph name="left" /> Retour</button>
         <span class="grow"></span>
-        <button class="primary" onclick={next}>{step === WIZARD.length - 1 ? 'Terminer' : 'Suivant ▶'}</button>
+        <button class="primary" onclick={next}>{#if step === WIZARD.length - 1}Terminer{:else}Suivant <Glyph name="right" />{/if}</button>
       </div>
     {:else}
       <Window title="Terminé">
@@ -271,9 +274,16 @@
       <button class="primary" onclick={saveAndBack}>Enregistrer</button>
     </div>
   {:else}
+    {#if status?.restart_needed?.length}
+      <div class="alert">
+        <strong><Glyph name="refresh" /> Redémarrage nécessaire</strong>
+        {RESTART_LABELS[status.restart_needed[0]] ?? 'Certains réglages'} ne peuvent pas changer pendant que la télé
+        fonctionne. Ils s'appliqueront au prochain démarrage de REWIND.
+      </div>
+    {/if}
     {#if status && !status.has_pin}
       <div class="alert">
-        <strong>⚠ Attention</strong>
+        <strong><Glyph name="warn" /> Attention</strong>
         Aucun code secret : toute personne connectée à votre Wi-Fi peut changer ces réglages.
         <button class="link" onclick={() => open('security')}>Choisir un code</button>
       </div>
@@ -281,7 +291,7 @@
     <a class="remote-btn" href="/remote/" target="_blank" rel="noopener">
       <span class="r-led"></span>
       <span class="r-text"><strong>Télécommande virtuelle</strong><small>Pilotez la télé depuis ce téléphone</small></span>
-      <span class="r-arrow">↗</span>
+      <span class="r-arrow"><Glyph name="external" size="20px" /></span>
     </a>
     <nav class="menu">
       {#each MENU as id (id)}
@@ -308,7 +318,7 @@
         <p class="bad">{saving.error}</p>
         <div class="row end"><button class="primary" onclick={() => (saving = null)}>OK</button></div>
       {:else}
-        <p>{saving.done ? 'Réglages enregistrés ✓' : 'Envoi des réglages à la télé…'}</p>
+        <p>{#if saving.done}Réglages enregistrés <Glyph name="check" />{:else}Envoi des réglages à la télé…{/if}</p>
         <Progress value={saving.progress} />
       {/if}
     </Window>
@@ -344,22 +354,10 @@
     height: 120px;
     opacity: 0.85;
   }
-  .word {
+  .mark {
     position: relative;
-    display: block;
-    font: 36px/1 var(--cond);
-    letter-spacing: 0.14em;
-    color: var(--yellow);
-    -webkit-text-stroke: 1.5px #000;
-    paint-order: stroke fill;
-    text-shadow: 3px 3px 0 #000;
-  }
-  .tag {
-    position: relative;
-    display: block;
-    margin-top: 4px;
-    font: 13px/1 'Admin Pixel', monospace;
-    letter-spacing: 0.12em;
+    display: inline-block;
+    --brand-tag: var(--ink);
   }
   .side {
     flex: 1;
@@ -417,27 +415,32 @@
   .m-label {
     text-transform: uppercase;
   }
-  /* Not a settings button: a black plastic remote-like bar. */
+  /* Not a settings button: charcoal like the remote, square like the other buttons. */
   .remote-btn {
     display: flex;
     align-items: center;
     gap: 12px;
     margin-bottom: 14px;
     padding: 14px 16px;
-    border-radius: 22px;
-    background: linear-gradient(90deg, #232326, #3a3a3f 50%, #232326);
+    border: 2px solid var(--ink);
+    border-radius: 0;
+    background: #29292c;
     color: #f2f2f2;
     text-decoration: none;
     font-weight: normal;
     box-shadow:
-      inset 0 2px 0 #55555b,
-      inset 0 -3px 0 #111,
+      inset 2px 2px 0 #55555b,
+      inset -2px -2px 0 #111,
       4px 4px 0 rgba(0, 0, 0, 0.45);
   }
+  .remote-btn:active {
+    box-shadow:
+      inset 2px 2px 0 #111,
+      inset -2px -2px 0 #55555b;
+  }
   .r-led {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
+    width: 14px;
+    height: 6px;
     background: #ff3030;
     box-shadow: 0 0 8px #ff3030;
   }
@@ -456,7 +459,7 @@
     color: #bbb;
   }
   .r-arrow {
-    font-size: 22px;
+    display: flex;
   }
   .legend {
     display: flex;
@@ -474,8 +477,13 @@
     box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.45);
     font-size: 14px;
   }
+  .alert {
+    --glyph-cut: var(--yellow);
+  }
   .alert strong {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font: 18px var(--cond);
     text-transform: uppercase;
   }

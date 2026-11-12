@@ -26,7 +26,15 @@ def _run(args: list[str]) -> str:
 
 def _session_env() -> dict[str, str]:
     # pactl needs the user's runtime dir (the service may not inherit it).
-    keep = ("XDG_RUNTIME_DIR", "PULSE_SERVER", "HOME", "PATH", "DBUS_SESSION_BUS_ADDRESS")
+    keep = (
+        "XDG_RUNTIME_DIR",
+        "PULSE_SERVER",
+        "HOME",
+        "PATH",
+        "DBUS_SESSION_BUS_ADDRESS",
+        "DISPLAY",
+        "XAUTHORITY",
+    )
     env = {k: os.environ[k] for k in keep if k in os.environ}
     env.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     return env
@@ -110,4 +118,21 @@ def apply_av_offset(port: str | None, offset_ms: int, run: Runner = _run) -> boo
             except (OSError, subprocess.SubprocessError) as err:
                 log.warning("cannot set the A/V offset: %s", err)
                 return False
+    return False
+
+
+def apply_display(output: str | None, mode: str | None, run: Runner = _run) -> bool:
+    """Switches the video output/mode now (X11 `xrandr`). False = only at next start."""
+    if not output:
+        return False
+    # Config uses DRM names (HDMI-A-2); X11 calls it HDMI-2.
+    names = [output.replace("HDMI-A-", "HDMI-"), output]
+    args = ["--mode", mode] if mode else ["--auto"]
+    for name in dict.fromkeys(names):
+        try:
+            run(["xrandr", "--output", name, *args])
+            return True
+        except (OSError, subprocess.SubprocessError):
+            continue
+    log.info("cannot switch the display to %s %s now", output, mode or "auto")
     return False

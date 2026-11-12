@@ -1,5 +1,6 @@
 <!-- "Test" button: runs one real request with the settings as typed and shows the verdict. -->
 <script lang="ts">
+  import Glyph from '../../components/Glyph.svelte';
   import type { CheckResult } from '../api';
 
   let { run, label = 'Tester' }: { run: () => Promise<CheckResult>; label?: string } = $props();
@@ -20,7 +21,7 @@
 </script>
 
 <div class="test">
-  <button onclick={go} disabled={busy}>{busy ? 'Test en cours…' : `⚡ ${label}`}</button>
+  <button onclick={go} disabled={busy}>{#if busy}Test en cours…{:else}<Glyph name="bolt" /> {label}{/if}</button>
   {#if result}
     <p class="verdict" class:good={result.ok}>
       <span class="lamp" class:on={result.ok} class:todo={!result.ok}></span>

@@ -4,6 +4,7 @@
   channel is optional. A timeline shows the whole alarm, up to its auto stop.
 -->
 <script lang="ts">
+  import Glyph from '../../components/Glyph.svelte';
   import { onDestroy } from 'svelte';
   import { adminApi, type Cfg } from '../api';
   import { CHIMES, duration } from '../helpers';
@@ -38,7 +39,7 @@
   async function listenOnTv() {
     tvNote = '';
     const { delivered } = await adminApi.tvEvent('chime', a.chime).catch(() => ({ delivered: 0 }));
-    tvNote = delivered ? 'La télé joue la sonnerie.' : "La télé n'est pas connectée (est-elle allumée sur REWIND v2 ?).";
+    tvNote = delivered ? 'La télé joue la sonnerie.' : "La télé n'est pas connectée (est-elle allumée sur REWIND ?).";
   }
 
   onDestroy(() => player?.pause());
@@ -93,7 +94,7 @@
 
 <Window title="Sonnerie">
   {#snippet help()}
-    <p>Des sonneries douces, qui montent progressivement. Touchez ▶ pour écouter sur le téléphone.</p>
+    <p>Des sonneries douces, qui montent progressivement. Touchez <Glyph name="play" /> pour écouter sur le téléphone.</p>
   {/snippet}
   <div class="chimes">
     {#each CHIMES as c (c.id)}
@@ -103,7 +104,7 @@
           <span class="c-text"><strong>{c.label}</strong><small>{c.description}</small></span>
         </button>
         {#if c.id !== 'none'}
-          <button class="play" onclick={() => listen(c.id)} aria-label="Écouter {c.label}">{playing === c.id ? '■' : '▶'}</button>
+          <button class="play" onclick={() => listen(c.id)} aria-label="Écouter {c.label}"><Glyph name={playing === c.id ? 'stop' : 'play'} /></button>
         {/if}
       </div>
     {/each}

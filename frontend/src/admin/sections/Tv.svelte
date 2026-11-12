@@ -35,13 +35,13 @@
   {#if shelly}
     <label>
       <span>Adresse de la prise</span>
-      <input bind:value={cfg.power.shelly_host} placeholder="192.168.1.19" inputmode="url" autocapitalize="off" />
+      <input bind:value={cfg.power.shelly_host} placeholder="192.168.1.50" inputmode="url" autocapitalize="off" />
     </label>
     <Help label="Où trouver l'adresse de la prise ?">
       <ol>
         <li>Ouvrez l'application <strong>Shelly Smart Control</strong>.</li>
         <li>Touchez la prise, puis <strong>Paramètres → Informations sur l'appareil</strong>.</li>
-        <li>Recopiez l'<strong>adresse IP</strong> (quatre nombres, comme <code>192.168.1.19</code>).</li>
+        <li>Recopiez l'<strong>adresse IP</strong> (quatre nombres, comme <code>192.168.1.50</code>).</li>
       </ol>
       <p>
         Conseil : dans votre box Internet, réservez cette adresse à la prise (« bail DHCP fixe ») pour qu'elle ne change

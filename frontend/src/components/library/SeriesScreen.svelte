@@ -8,7 +8,7 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { api, type EpisodeView, type SeasonView } from '../../lib/api';
   import { t } from '../../lib/i18n';
-  import { episodeCode, formatTime, library } from '../../lib/library.svelte';
+  import { episodeCode, formatProgress, library } from '../../lib/library.svelte';
   import { reveal } from '../../lib/sound';
   import { tv } from '../../lib/tv.svelte';
   import CrtHeader from '../CrtHeader.svelte';
@@ -23,6 +23,7 @@
   const seasons = (show.seasons ?? []).map((s) => s.season_number);
   let root: HTMLElement;
   let detail: HTMLElement | undefined = $state();
+  let seasonBar: HTMLElement | undefined = $state();
   let season = $state(
     tv.showAt.season && seasons.includes(tv.showAt.season) ? tv.showAt.season : (seasons[0] ?? 1),
   );
@@ -68,6 +69,18 @@
     } catch {
       if (n === season) failed = true;
     }
+  }
+
+  // The air-mouse wheel only scrolls vertically: turn it sideways here.
+  function wheelSeasons(e: WheelEvent) {
+    if (!seasonBar || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    if (seasonBar.scrollWidth <= seasonBar.clientWidth) return;
+    e.preventDefault();
+    seasonBar.scrollLeft += e.deltaY;
+  }
+
+  function showActiveSeason() {
+    seasonBar?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
 
   function selectSeason(n: number) {
@@ -124,6 +137,7 @@
   }
 
   onMount(() => {
+    showActiveSeason(); // resuming at season 30: bring its tab into view
     void load().then(() => reveal(root, '[data-reveal]'));
     timer = setInterval(() => void load(), POLL_MS);
   });
@@ -134,7 +148,7 @@
   <CrtHeader title={show.title} />
   <div class="body">
     <div class="left">
-      <div class="seasons" data-reveal>
+      <div class="seasons" data-reveal bind:this={seasonBar} onwheel={wheelSeasons}>
         {#each seasons as n (n)}
           <button class:active={n === season} onclick={() => selectSeason(n)}>S{n}</button>
         {/each}
@@ -183,7 +197,7 @@
           <div class="d-state {seen ? 'watched' : 'ready'}">
             {ICONS[seen ? 'watched' : 'ready']} {t(`series.state.${seen ? 'watched' : 'ready'}`)}
           </div>
-          {#if current.duration}<div class="d-time">{formatTime(current.position)} / {formatTime(current.duration)}</div>{/if}
+          {#if current.duration}<div class="d-time"><span class="no-wrap">{formatProgress(current.position, current.duration)}</span></div>{/if}
           <Bar ratio={current.duration ? current.position / current.duration : 0} height={14} />
         {:else}
           <div class="d-state {st}">{ICONS[st]} {t(`series.state.${st}`)}</div>
@@ -237,19 +251,24 @@
     min-height: 0;
     border-right: 3px solid var(--crt-border);
   }
-  /* Many seasons (The Simpsons: 38) wrap in a small block, never widen the column. */
+  /* Many seasons (The Simpsons: 38) scroll sideways on one line, as in v1:
+     the bar never takes more height. Same-width tabs keep it regular. */
   .seasons {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 4px;
-    padding: 6px 8px 4px var(--safe-x);
-    max-height: 88px;
-    overflow-y: auto;
+    padding: 6px 8px 6px var(--safe-x);
+    overflow-x: auto;
+    overflow-y: hidden;
     flex: 0 0 auto;
     border-bottom: 2px solid var(--crt-divider);
+    scrollbar-width: thin;
+    scrollbar-color: var(--crt-dim) transparent;
   }
   .seasons button {
     flex: 0 0 auto;
+    min-width: 3.4em;
+    text-align: center;
     padding: 3px 9px;
     font-size: var(--fs-m);
     color: var(--crt-dim);
@@ -318,6 +337,9 @@
   }
   .ep.error .ep-state {
     color: var(--crt-alert);
+  }
+  .ep:hover:not(.active) {
+    background: var(--crt-hover);
   }
   .ep.active,
   .ep.active span {

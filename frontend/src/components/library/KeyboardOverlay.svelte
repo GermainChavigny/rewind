@@ -2,14 +2,13 @@
   On-screen keyboard (v1 VirtualKeyboard), driven by the cursor with big keys.
   Serves the search (with the Movies / Series switch) and the advisor's
   keywords. A real keyboard also types (letters, space, backspace, enter): the
-  remote's keys keep their TV meaning.
+  remote's keys keep their TV meaning. The text lives in `tv.kbText`, so the
+  phone remote's keyboard can write it too.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { advisor } from '../../lib/advisor.svelte';
   import { t } from '../../lib/i18n';
   import { library } from '../../lib/library.svelte';
-  import { search, type SearchKind } from '../../lib/search.svelte';
   import { reveal } from '../../lib/sound';
   import { tv } from '../../lib/tv.svelte';
   import CrtHeader from '../CrtHeader.svelte';
@@ -24,16 +23,14 @@
 
   const forAdvisor = tv.keyboardFor === 'advisor';
   let root: HTMLElement;
-  let text = $state(forAdvisor ? advisor.keywords : '');
-  // Movies or series: only what is configured can be searched.
-  let kind = $state<SearchKind>(
-    !library.features.search ? 'series' : !library.features.series ? 'movie' : search.kind,
-  );
   const canSwitch = $derived(library.features.search && library.features.series);
 
+  function type(text: string) {
+    tv.setKeyboardText(text);
+  }
+
   function submit() {
-    if (!forAdvisor && !text.trim()) return; // empty keywords = clear them
-    tv.submitKeyboard(text.trim(), kind);
+    tv.submitKeyboard();
   }
 
   function cancel() {
@@ -43,9 +40,9 @@
   /** Physical keyboard: typing keys only. */
   function onkeydown(e: KeyboardEvent) {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
-    if (/^[a-z0-9]$/i.test(e.key)) text += e.key.toLowerCase();
-    else if (e.key === ' ') text += ' ';
-    else if (e.key === 'Backspace') text = text.slice(0, -1);
+    if (/^[a-z0-9]$/i.test(e.key)) type(tv.kbText + e.key.toLowerCase());
+    else if (e.key === ' ') type(tv.kbText + ' ');
+    else if (e.key === 'Backspace') type(tv.kbText.slice(0, -1));
     else if (e.key === 'Enter') submit();
     else if (e.key === 'Escape') cancel();
     else return;
@@ -64,23 +61,23 @@
     <div class="top" data-reveal>
       <span class="prompt">{forAdvisor ? t('kb.advisor_prompt') : t('kb.search_prompt')}</span>
       {#if !forAdvisor && canSwitch}
-        <button class="crt-btn kind" onclick={() => (kind = kind === 'series' ? 'movie' : 'series')}>
-          {kind === 'series' ? t('kb.series') : t('kb.movies')}
+        <button class="crt-btn kind" onclick={() => (tv.kbKind = tv.kbKind === 'series' ? 'movie' : 'series')}>
+          {tv.kbKind === 'series' ? t('kb.series') : t('kb.movies')}
         </button>
       {/if}
     </div>
-    <div class="display" data-reveal><span>{text}</span><span class="caret">|</span></div>
+    <div class="display" data-reveal><span>{tv.kbText}</span><span class="caret">|</span></div>
     {#each ROWS as row, i (i)}
       <div class="keys" data-reveal>
         {#each row as key (key)}
-          <button class="key" onclick={() => (text += key)}>{key}</button>
+          <button class="key" onclick={() => type(tv.kbText + key)}>{key}</button>
         {/each}
       </div>
     {/each}
     <div class="keys actions" data-reveal>
-      <button class="key" onclick={() => (text += ' ')}>{t('kb.space')}</button>
-      <button class="key" onclick={() => (text = text.slice(0, -1))}>{t('kb.back')}</button>
-      <button class="key" onclick={() => (text = '')}>{t('kb.clear')}</button>
+      <button class="key" onclick={() => type(tv.kbText + ' ')}>{t('kb.space')}</button>
+      <button class="key" onclick={() => type(tv.kbText.slice(0, -1))}>{t('kb.back')}</button>
+      <button class="key" onclick={() => type('')}>{t('kb.clear')}</button>
       <button class="key submit" onclick={submit}>{forAdvisor ? t('kb.ok') : t('kb.search_submit')}</button>
     </div>
   </div>

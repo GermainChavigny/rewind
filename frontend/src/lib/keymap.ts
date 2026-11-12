@@ -17,7 +17,9 @@ export type Action =
   | 'volume_up'
   | 'volume_down'
   | 'darker'
-  | 'brighter';
+  | 'brighter'
+  /** Phone remote only: leave the movies for the welcome screen. */
+  | 'home';
 
 export type Keymap = Record<string, string[]>;
 

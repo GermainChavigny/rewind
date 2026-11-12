@@ -10,7 +10,7 @@
   import { t } from '../../lib/i18n';
   import {
     episodeCode,
-    formatTime,
+    formatProgress,
     isActive,
     isReady,
     isWatched,
@@ -219,7 +219,7 @@
         {#if selected.year}<div class="d-year">{selected.year}</div>{/if}
         <div class="d-prog" class:error={selected.status === 'error'}>
           {#if ready}
-            {#if selected.duration}{formatTime(selected.position)} / {formatTime(selected.duration)}{/if}
+            {#if selected.duration}<span class="no-wrap">{formatProgress(selected.position, selected.duration)}</span>{/if}
             <Bar ratio={playedRatio(selected)} height={14} />
           {:else}
             {st.full}
@@ -295,12 +295,15 @@
   .row {
     width: 100%;
     display: grid;
-    grid-template-columns: 1fr 30%;
+    grid-template-columns: 1fr 22%;
     align-items: center;
     gap: 10px;
     padding: 6px 8px;
     text-align: left;
     border-bottom: 2px solid var(--crt-divider);
+  }
+  .row:hover:not(.active) {
+    background: var(--crt-hover);
   }
   .row.active {
     background: var(--crt-accent);

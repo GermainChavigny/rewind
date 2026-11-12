@@ -1,6 +1,7 @@
 """Admin helpers: service checks, model lists, hardware, TV events, virtual remote."""
 
 import asyncio
+import threading
 
 import httpx
 
@@ -125,19 +126,98 @@ def test_av_offset_applied_live_and_on_save(make_client):
 def test_virtual_remote_layout_and_press(make_client):
     client = make_client(sample_config())
     got = client.get("/api/remote/layout").json()
-    assert got["layout"] is None and "channel_1" in got["actions"]
+    assert got["layouts"] == {"tv": None, "movies": None}
+    assert "channel_1" in got["actions"] and got["extra"] == ["home", "machine_power"]
     layout = {"cols": 4, "rows": 9, "cells": {"channel_1": 0, "tv_power": 3, "bogus": 1}}
-    assert client.put("/api/remote/layout", json=layout).json()["cells"] == {
+    assert client.put("/api/remote/layout/tv", json=layout).json()["cells"] == {
         "channel_1": 0, "tv_power": 3,
     }  # fmt: skip
+    movies = {"cols": 4, "rows": 4, "cells": {"home": 0, "play_pause": 5}}
+    assert client.put("/api/remote/layout/movies", json=movies).json()["cells"] == movies["cells"]
+    got = client.get("/api/remote/layout").json()["layouts"]
+    assert got["tv"]["cells"] == {"channel_1": 0, "tv_power": 3}
+    assert got["movies"]["rows"] == 4
     clash = {"cols": 4, "rows": 9, "cells": {"channel_1": 0, "tv_power": 0}}
-    assert client.put("/api/remote/layout", json=clash).status_code == 422
-    assert client.post("/api/remote/press", json={"action": "channel_2"}).json() == {"delivered": 0}
+    assert client.put("/api/remote/layout/tv", json=clash).status_code == 422
+    assert client.put("/api/remote/layout/radio", json=layout).status_code == 422
+    press = client.post("/api/remote/press", json={"action": "channel_2"})
+    assert press.json() == {"delivered": False}
+    assert client.post("/api/remote/press", json={"action": "home"}).status_code == 200
     assert client.post("/api/remote/press", json={"action": "nope"}).status_code == 404
     assert (
         client.post("/api/admin/tv-event", json={"type": "chime", "chime": "dawn"}).status_code
         == 200
     )
+
+
+def test_pointer_text_and_tv_report(make_client):
+    client = make_client(sample_config())
+    bus: EventBus = client.app.state.events
+    sent = []
+    bus.publish = lambda event: sent.append(event) or 1
+    assert client.post("/api/remote/pointer", json={"dx": 4, "dy": -2}).json()["delivered"]
+    assert (
+        client.post("/api/remote/text", json={"text": "alien", "submit": True}).status_code == 200
+    )
+    assert sent == [
+        {"type": "pointer", "dx": 4, "dy": -2, "click": False, "scroll": 0},
+        {"type": "text", "text": "alien", "submit": True},
+    ]
+    phones = []
+    client.app.state.remote_events.publish = lambda event: phones.append(event) or 1
+    report = {"mode": "movies", "keyboard": {"text": "ali", "purpose": "series"}}
+    assert client.put("/api/tv/report", json=report).status_code == 200
+    assert phones[-1]["mode"] == "movies" and phones[-1]["keyboard"]["text"] == "ali"
+    assert client.put("/api/tv/report", json={"mode": "radio"}).status_code == 422
+
+
+def test_admin_url_points_at_the_lan(make_client, monkeypatch):
+    from rewind import system
+
+    client = make_client(sample_config())
+    monkeypatch.setattr(system, "lan_address", lambda: "192.168.0.42")
+    assert client.get("/api/remote/admin-url").json() == {
+        "url": "http://192.168.0.42/admin/", "lan": True,
+    }  # fmt: skip
+
+
+def test_shutdown(make_client, monkeypatch):
+    from rewind.routes import remote
+
+    monkeypatch.setattr(remote, "SHUTDOWN_CARD_S", 0)
+    cfg = sample_config()
+    cfg.power.provider = "fake"
+    client = make_client(cfg)
+    done = threading.Event()
+    modes = []
+    # Recorder only: the real poweroff is never reachable from this test.
+    client.app.state.poweroff = lambda mode: modes.append(mode) or done.set() or True
+    tv_events = []
+    client.app.state.events.publish = lambda event: tv_events.append(event) or 1
+    assert client.post("/api/remote/shutdown").json()["started"]
+    assert done.wait(2)
+    assert modes == ["poweroff"] and tv_events[0] == {"type": "shutdown"}
+
+    cfg.system.shutdown = "none"
+    client = make_client(cfg)
+    client.app.state.poweroff = lambda mode: modes.append(mode) or True
+    assert client.post("/api/remote/shutdown").status_code == 404
+    assert client.get("/api/remote/layout").json()["extra"] == ["home"]
+    assert modes == ["poweroff"]
+
+
+def test_poweroff_modes():
+    from rewind import system
+
+    calls = []
+    assert system.poweroff("fake", run=calls.append) and calls == []
+    assert not system.poweroff("none", run=calls.append)
+    assert system.poweroff("poweroff", run=calls.append) and len(calls) == 1
+
+    def fail(args):
+        raise OSError("denied")
+
+    assert not system.poweroff("poweroff", run=fail)
 
 
 def test_event_bus_delivers_to_subscribers():
@@ -146,6 +226,10 @@ def test_event_bus_delivers_to_subscribers():
         stream = bus.stream()
         assert await anext(stream) == ": connected\n\n"
         assert bus.listeners == 1
+        first = bus.stream(first={"type": "state"})
+        assert await anext(first) == ": connected\n\n"
+        assert await anext(first) == 'data: {"type": "state"}\n\n'
+        await first.aclose()
         assert bus.publish({"type": "action", "action": "next"}) == 1
         assert await anext(stream) == 'data: {"type": "action", "action": "next"}\n\n'
         await stream.aclose()

@@ -3,6 +3,7 @@
   new PIN goes into the config and is written with the next save.
 -->
 <script lang="ts">
+  import Glyph from '../../components/Glyph.svelte';
   import { untrack } from 'svelte';
   import type { Cfg } from '../api';
   import Icon from '../ui/Icon.svelte';
@@ -66,7 +67,7 @@
     </p>
     <p>
       Code oublié ? Sur le PC de la télé, effacez la ligne <code>pin</code> de la rubrique <code>[admin]</code> du
-      fichier <code>~/.config/rewind/config.toml</code>, puis redémarrez REWIND.
+      fichier <code>~/.config/rewind/config.toml</code> et enregistrez : c'est pris en compte aussitôt.
     </p>
   {/snippet}
 
@@ -93,7 +94,7 @@
       {#each ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as d (d)}
         <button onclick={() => press(d)}>{d}</button>
       {/each}
-      <button onclick={() => (entry = entry.slice(0, -1))} aria-label="Effacer">⌫</button>
+      <button onclick={() => (entry = entry.slice(0, -1))} aria-label="Effacer"><Glyph name="erase" size="22px" /></button>
       <button onclick={() => press('0')}>0</button>
       <button class="go" onclick={ok}>OK</button>
     </div>

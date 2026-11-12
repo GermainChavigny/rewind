@@ -1,7 +1,8 @@
 <!--
-  Today's forecast, 90s cable weather channel style (v1 WeatherPopup): white
-  badge, "<CITY> AREA · TODAY'S FORECAST" + clock, three blue panels
-  (morning / afternoon / evening) on a violet→orange frame, lo/hi bar.
+  The coming forecast, 90s cable weather channel style (v1 WeatherPopup):
+  white badge, area + title + clock, three blue panels on a violet→orange
+  frame, lo/hi bar. Only what is still to come: in the evening, tonight then
+  tomorrow morning and afternoon, after a "Tomorrow" divider.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
@@ -14,6 +15,7 @@
   let root: HTMLElement;
   onMount(() => reveal(root));
   const w = $derived(tv.weather);
+  const spansTomorrow = $derived(!!w?.periods.some((p) => p.day > 0));
 </script>
 
 <div class="backdrop" role="presentation" onclick={() => tv.closeOverlay()} bind:this={root}>
@@ -23,13 +25,17 @@
         <span class="badge"><b>{t('weather.badge_top')}</b>{t('weather.badge')}<b>{t('weather.badge_bottom')}</b></span>
         <span class="title">
           {#if w.location}<span>{t('weather.area', { location: w.location })}</span><br />{/if}
-          {t('weather.today')}
+          {spansTomorrow ? t('weather.coming') : t('weather.today')}
         </span>
         <span class="clock"><Clock part="time" /><span class="date"><Clock part="date" /></span></span>
       </div>
       <div class="panels">
-        {#each w.periods as p (p.id)}
-          <div class="panel" data-reveal>
+        {#each w.periods as p, i (`${p.day}-${p.id}`)}
+          {#if p.day > 0 && (i === 0 || w.periods[i - 1].day === 0)}
+            <!-- Tomorrow starts here: a divider, so the next panels read as the next day. -->
+            <div class="divider" class:first={i === 0} data-reveal><span>{t('weather.tomorrow')}</span></div>
+          {/if}
+          <div class="panel" class:next={p.day > 0} data-reveal>
             <div class="day">{t(`weather.${p.id}`)}</div>
             <div class="icon"><WeatherIcon code={p.code} size={79} /></div>
             <div class="cond">{t(conditionKey(p.code))}</div>
@@ -38,7 +44,7 @@
         {/each}
       </div>
       <div class="foot" data-reveal>
-        <span>{t(conditionKey(w.day.code))}</span>
+        <span>{#if w.day.offset}{t('weather.tomorrow')} · {/if}{t(conditionKey(w.day.code))}</span>
         <span class="lohi">{t('weather.lo')} <b>{w.day.lo}°</b> &nbsp; {t('weather.hi')} <b>{w.day.hi}°</b></span>
       </div>
     </div>
@@ -115,9 +121,31 @@
     color: #c4c4c4;
   }
   .panels {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
     gap: 14px;
+  }
+  .panels > .panel {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  /* "Tomorrow": a white rule with the word written up it, between two panels. */
+  .divider {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 -6px;
+    padding: 0 4px;
+    border-left: 3px dashed #fff;
+  }
+  .divider span {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: var(--fs-s);
+    color: var(--crt-accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: var(--crt-shadow);
   }
   .panel {
     display: flex;

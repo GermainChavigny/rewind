@@ -10,6 +10,8 @@ export interface Status {
   weather: boolean;
   library: boolean;
   version: string;
+  /** Saved settings applied only at the next start (e.g. 'display'). */
+  restart_needed: string[];
 }
 
 export interface Place {

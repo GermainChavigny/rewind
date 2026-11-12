@@ -40,6 +40,7 @@ def make_client(paths, web):
         if config is not None:
             ConfigStore(paths.config / "config.toml").save(config)
         app = create_app(paths, http=httpx.Client(transport=httpx.MockTransport(web.handler)))
+        app.state.poweroff = lambda mode: True  # never turn the test machine off
         return TestClient(app)
 
     return make

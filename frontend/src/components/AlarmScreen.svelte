@@ -60,7 +60,7 @@
   </main>
   <CrtFooter>
     {#snippet actions()}
-      <button class="navbtn" onclick={() => tv.openScreen(null)}>[{t('alarm.close')}]</button>
+      <button class="navbtn" onclick={() => tv.closeAlarm()}>[{t('alarm.close')}]</button>
     {/snippet}
   </CrtFooter>
 </div>

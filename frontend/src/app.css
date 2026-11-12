@@ -22,6 +22,7 @@
   --crt-panel-2: #002ab8;
   --crt-border: #d1d7e3;
   --crt-divider: rgba(209, 215, 227, 0.2);
+  --crt-hover: rgba(209, 215, 227, 0.09); /* list row under the pointer */
   --crt-text: #d1d7e3;
   --crt-dim: #b7c0d6;
   --crt-accent: #ffdd00;
@@ -227,4 +228,8 @@ video::cue {
   font-family: Arial, 'DejaVu Sans', sans-serif;
   background: rgba(0, 0, 0, 0.55);
   text-shadow: 1px 1px 2px #000;
+}
+
+.no-wrap {
+  white-space: nowrap;
 }

@@ -64,3 +64,62 @@ def test_old_image_logos_are_dropped():
     old = {"id": "news", "name": "News", "logo": "custom:newsTV.png", "show_name": True}
     assert Channel.model_validate(old).logo_style == 1
     assert Channel.model_validate({"id": "a", "name": "A", "logo": "retro:2"}).logo_style == 2
+
+
+def test_hand_edit_is_reloaded(tmp_path):
+    import os
+
+    from rewind.config import ConfigStore
+
+    path = tmp_path / "config.toml"
+    store = ConfigStore(path)
+    store.save(store.get())
+    path.write_text('[admin]\npin = "4321"\n')
+    os.utime(path, ns=(1, 1))  # a different mtime, whatever the clock resolution
+    assert store.get().admin.pin == "4321"
+    path.write_text("[admin\n")  # half-typed: the last good config stays
+    os.utime(path, ns=(2, 2))
+    assert store.get().admin.pin == "4321"
+
+
+def test_subtitle_languages_are_checked():
+    import pytest
+    from pydantic import ValidationError
+
+    from rewind.config import OpenSubtitlesConfig
+
+    assert OpenSubtitlesConfig(languages=["es", "fr"]).languages == ["es", "fr"]
+    with pytest.raises(ValidationError):
+        OpenSubtitlesConfig(languages=["klingon"])
+
+
+def test_subtitle_languages_default_to_the_interface_language():
+    from rewind.config import Config, GeneralConfig
+
+    # Nobody's personal choice by default: the interface language.
+    assert Config().opensubtitles.languages == []
+    assert Config().subtitle_languages == ["fr"]
+    assert Config(general=GeneralConfig(language="pt-BR")).subtitle_languages == ["pt"]
+    assert Config(general=GeneralConfig(language="xx")).subtitle_languages == []
+    cfg = Config()
+    cfg.opensubtitles.languages = ["ja", "en"]
+    assert cfg.subtitle_languages == ["ja", "en"]
+
+
+def test_embedded_subtitle_tags_cover_every_language():
+    from rewind.library.transcoder import SUB_LANGS
+
+    assert SUB_LANGS["fre"] == SUB_LANGS["fra"] == SUB_LANGS["fr"] == "fr"
+    assert SUB_LANGS["jpn"] == "ja" and SUB_LANGS["chi"] == "zh"
+
+
+def test_admin_knows_the_same_subtitle_languages():
+    import re
+    from pathlib import Path
+
+    from rewind.config import SUBTITLE_LANGUAGES
+
+    helpers = Path(__file__).parents[2] / "frontend/src/admin/helpers.ts"
+    block = re.search(r"SUBTITLE_CODES = \[(.*?)\]", helpers.read_text(), re.S)
+    assert block, "SUBTITLE_CODES not found in admin/helpers.ts"
+    assert sorted(re.findall(r"'([a-z]{2})'", block.group(1))) == sorted(SUBTITLE_LANGUAGES)

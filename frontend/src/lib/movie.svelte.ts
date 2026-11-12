@@ -15,9 +15,19 @@ import { api, mediaUrl, type Media } from './api';
 import { isWatched, library, WATCHED_THRESHOLD } from './library.svelte';
 
 const SAVE_EVERY_MS = 2500;
-const LANG_NAMES: Record<string, string> = { fr: 'Français', en: 'English' };
+/** Subtitle languages, each in its own language (as on a DVD menu). */
+export const LANG_NAMES: Record<string, string> = {
+  fr: 'Français',
+  en: 'English',
+  es: 'Español',
+  de: 'Deutsch',
+  it: 'Italiano',
+  pt: 'Português',
+  nl: 'Nederlands',
+};
 
-export type SubMode = 'fr' | 'en' | 'off';
+/** 'off' or an ISO 639-1 language code. */
+export type SubMode = string;
 
 interface BrowserAudioTrack {
   enabled: boolean;
@@ -202,7 +212,7 @@ class MoviePlayer {
     const video = this.video!;
     video.querySelectorAll('track').forEach((t) => t.remove());
     const subs = entry.subtitles ?? {};
-    const langs = Object.keys(subs).filter((l) => l === 'fr' || l === 'en');
+    const langs = Object.keys(subs).filter((l) => l in LANG_NAMES);
     this.subLangs = langs;
     this.offsets = { ...(entry.subtitle_offsets ?? {}) };
     this.applied = {};

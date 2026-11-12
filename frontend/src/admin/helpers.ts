@@ -21,13 +21,13 @@ const KEY_NAMES: Record<string, string> = {
   AudioVolumeUp: 'Vol +',
   AudioVolumeDown: 'Vol −',
   MediaPlayPause: 'Lecture/Pause',
-  MediaTrackNext: 'Suivant ⏭',
-  MediaTrackPrevious: 'Précédent ⏮',
+  MediaTrackNext: 'Suivant',
+  MediaTrackPrevious: 'Précédent',
   PageUp: 'Page ↑',
   PageDown: 'Page ↓',
   Enter: 'Entrée',
   Escape: 'Échap',
-  Backspace: 'Retour ⌫',
+  Backspace: 'Retour',
 };
 
 /** A readable name for a keyboard key value ("ArrowUp" → "↑"). */
@@ -96,7 +96,7 @@ export function avOffsetText(ms: number): string {
 
 /** Alarm chimes (frontend/public/audio/chimes/<id>.mp3, made by scripts/make-chimes.py). */
 export const CHIMES: { id: string; label: string; description: string }[] = [
-  { id: 'classic', label: 'Classique', description: 'La sonnerie douce de la v1' },
+  { id: 'classic', label: 'Classique', description: 'La sonnerie douce' },
   { id: 'bells', label: 'Carillon', description: 'Trois cloches claires' },
   { id: 'musicbox', label: 'Boîte à musique', description: 'Une petite mélodie' },
   { id: 'dawn', label: 'Aube', description: 'Un accord chaud qui enfle' },
@@ -151,5 +151,28 @@ export function phoneUrl(url: string, tvHost: string): string {
     return u.toString();
   } catch {
     return url;
+  }
+}
+
+/** Lower case without accents, to match what is typed ("fr" ~ "Français"). */
+export function fold(text: string): string {
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+/** Subtitle languages that can be chosen (backend config.SUBTITLE_LANGUAGES). */
+export const SUBTITLE_CODES = [
+  'ar', 'bg', 'ca', 'cs', 'da', 'de', 'el', 'en', 'es', 'et', 'eu', 'fa', 'fi', 'fr', 'he', 'hi',
+  'hr', 'hu', 'id', 'is', 'it', 'ja', 'ko', 'lt', 'lv', 'ms', 'nl', 'no', 'pl', 'pt', 'ro', 'ru',
+  'sk', 'sl', 'sr', 'sv', 'th', 'tr', 'uk', 'vi', 'zh',
+]; // prettier-ignore
+export const MAX_SUBTITLE_LANGUAGES = 4;
+
+/** Language name in the interface language ("en" → "Anglais"). */
+export function languageName(code: string, uiLanguage = 'fr'): string {
+  try {
+    const name = new Intl.DisplayNames([uiLanguage], { type: 'language' }).of(code) ?? code;
+    return name.charAt(0).toLocaleUpperCase(uiLanguage) + name.slice(1);
+  } catch {
+    return code;
   }
 }

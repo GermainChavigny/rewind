@@ -24,6 +24,10 @@ consciously replaced) by v2. Tick items as they land.
       `AudioVideoTracks` (needed to switch audio tracks), no crash bubble, no
       update checks, tiny disk cache. (`--disable-web-security` is no longer
       needed once everything is same-origin.)
+- [x] No "Translate this page?" prompt: v1's profile had French blocked by
+      hand; v2 passes `--disable-features=Translate --lang=fr` and the pages
+      carry `translate="no"` + `<meta name="google" content="notranslate">`.
+      The phase 5 cage kiosk must keep these flags.
 - [x] Jackett: the launcher waits for `JackettUpdater` (segfault after an
       auto-update), systemd restarts it, and the API "kicks" it before a search
       if its port is closed. (v2: `[[indexers]] systemd_unit`; the launcher

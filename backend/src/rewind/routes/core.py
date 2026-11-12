@@ -25,6 +25,8 @@ def ui(ctx: AppContext = Depends(get_ctx)) -> dict:
         "keymap": c.remote.keys,
         "alarm": c.alarm.model_dump(),
         "crt_effects": c.display.crt_effects,
+        # Not set up yet: the welcome screen shows the settings QR code at once.
+        "first_run": not ctx.db.get_kv("setup_done", False),
     }
 
 

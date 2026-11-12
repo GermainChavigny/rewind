@@ -137,6 +137,7 @@ def config_from_v1(snap: Path, report: MigrationReport) -> Config:
     cfg.opensubtitles.api_key = osub.get("apiKey") or ""
     cfg.opensubtitles.username = osub.get("username") or ""
     cfg.opensubtitles.password = osub.get("password") or ""
+    cfg.opensubtitles.languages = ["fr", "en"]  # v1 always kept French and English
     # v1 restarted Jackett through its systemd user unit when it stopped answering.
     unit = "jackett.service" if "jackett.service" in api_py else None
     for ix in secrets.get("indexers") or []:

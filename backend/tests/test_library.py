@@ -166,7 +166,7 @@ def test_playback_started_and_watched(make_client, paths):
     assert item["last_played_at"] > 0 and not item["watched"]
     item = client.patch("/api/library/m/playback", json={"position": 95}).json()
     assert item["watched"]
-    r = client.patch("/api/library/m/playback", json={"subtitle_mode": "xx"})
+    r = client.patch("/api/library/m/playback", json={"subtitle_mode": "french"})
     assert r.status_code == 422
 
 
@@ -227,7 +227,7 @@ class FakeTorrent:
 
 
 class FakeTranscoder:
-    def extract_subtitles(self, src, out_dir, base):
+    def extract_subtitles(self, src, out_dir, base, langs=None):
         return {"en": f"{base}.en.vtt"}
 
     def prepare(self, src, dst, progress=None):

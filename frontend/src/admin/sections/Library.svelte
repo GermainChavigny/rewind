@@ -3,8 +3,18 @@
   search, Movie Advisor), each with a lamp and a "where do I find my key?" note.
 -->
 <script lang="ts">
+  import Glyph from '../../components/Glyph.svelte';
   import { adminApi, type Cfg } from '../api';
-  import { phoneUrl, presetOf, PROVIDERS, type ProviderPreset } from '../helpers';
+  import {
+    languageName,
+    MAX_SUBTITLE_LANGUAGES,
+    phoneUrl,
+    presetOf,
+    PROVIDERS,
+    type ProviderPreset,
+    SUBTITLE_CODES,
+  } from '../helpers';
+  import TagPicker from '../ui/TagPicker.svelte';
   import TestButton from '../ui/TestButton.svelte';
   import Help from '../ui/Help.svelte';
   import Secret from '../ui/Secret.svelte';
@@ -46,6 +56,13 @@
       loadingModels = null;
     }
   }
+
+  // Subtitle languages kept with each film (backend SUBTITLE_LANGUAGES), by name.
+  const SUB_LANGS = SUBTITLE_CODES.map((id) => ({ id, name: languageName(id, cfg.general.language) })).sort(
+    (a, b) => a.name.localeCompare(b.name, cfg.general.language),
+  );
+  // Empty list = the interface language (backend Config.subtitle_languages).
+  const uiLanguage = $derived(cfg.general.language.split('-')[0].toLowerCase());
 
   function slots(delta: number) {
     cfg.library.download_slots = Math.max(1, Math.min(10, cfg.library.download_slots + delta));
@@ -97,6 +114,23 @@
         seuls les sous-titres déjà inclus dans les fichiers sont utilisés.
       </p>
     {/snippet}
+    <span class="label">Langues des sous-titres</span>
+    <TagPicker
+      bind:value={cfg.opensubtitles.languages}
+      options={SUB_LANGS}
+      max={MAX_SUBTITLE_LANGUAGES}
+      label="Langues des sous-titres"
+      placeholder="Ajouter une langue…"
+    />
+    <p class="muted">
+      {#if cfg.opensubtitles.languages.length}
+        Gardés avec chaque film : ceux déjà dans le fichier, sinon téléchargés. {MAX_SUBTITLE_LANGUAGES} langues au plus.
+      {:else if SUBTITLE_CODES.includes(uiLanguage)}
+        Aucune choisie : la langue de l'interface ({languageName(uiLanguage, cfg.general.language)}).
+      {:else}
+        Aucune langue : les films n'auront pas de sous-titres.
+      {/if}
+    </p>
     <Secret bind:value={cfg.opensubtitles.api_key} label="Clé API" />
     <Help label="Où trouver ma clé OpenSubtitles ?">
       <ol>
@@ -201,7 +235,7 @@
         </label>
         <div class="row">
           <button onclick={() => loadModels(i)} disabled={loadingModels === i}>
-            {loadingModels === i ? 'Chargement…' : '↻ Liste des modèles'}
+            {#if loadingModels === i}Chargement…{:else}<Glyph name="refresh" /> Liste des modèles{/if}
           </button>
           {#if modelError[i]}<span class="bad">{modelError[i]}</span>{/if}
         </div>

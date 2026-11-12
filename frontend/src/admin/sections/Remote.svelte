@@ -3,6 +3,7 @@
   and adds it to the action; the TV does not run the action meanwhile.
 -->
 <script lang="ts">
+  import Glyph from '../../components/Glyph.svelte';
   import { onDestroy } from 'svelte';
   import { adminApi, type Cfg } from '../api';
   import { ACTION_GROUPS, keyLabel } from '../helpers';
@@ -40,7 +41,7 @@
         result = { ok: true, text: `Touche « ${keyLabel(state.key)} » ajoutée à « ${label} ».` };
         stop();
       } else if (!state.waiting) {
-        result = { ok: false, text: 'Aucune touche reçue. La télé est-elle allumée sur REWIND v2 ?' };
+        result = { ok: false, text: 'Aucune touche reçue. La télé est-elle allumée sur REWIND ?' };
         stop();
       }
     }, 500);
@@ -78,7 +79,7 @@
   {#each ACTION_GROUPS as g (g.title)}
     <div class="group">
       <button class="g-head" aria-expanded={openGroup === g.title} onclick={() => (openGroup = openGroup === g.title ? null : g.title)}>
-        <span>{openGroup === g.title ? '▾' : '▸'} {g.title}</span>
+        <span><Glyph name={openGroup === g.title ? 'caret-down' : 'caret-right'} /> {g.title}</span>
         <small>{g.actions.filter((a) => (cfg.remote.keys[a.id] ?? []).length).length}/{g.actions.length}</small>
       </button>
       {#if openGroup === g.title}

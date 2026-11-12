@@ -4,6 +4,7 @@
   reports (video connectors and modes, audio ports), no names to type.
 -->
 <script lang="ts">
+  import Glyph from '../../components/Glyph.svelte';
   import { onDestroy, onMount } from 'svelte';
   import { adminApi, type Cfg, type Hardware } from '../api';
   import { avOffsetText, liveAudio } from '../helpers';
@@ -46,7 +47,7 @@
     if (testing) return stopTest();
     const { delivered } = await adminApi.tvEvent('avtest').catch(() => ({ delivered: 0 }));
     if (!delivered) {
-      testNote = "La télé n'est pas connectée : allumez-la sur REWIND v2.";
+      testNote = "La télé n'est pas connectée : allumez-la sur REWIND.";
       return;
     }
     testing = true;
@@ -95,7 +96,7 @@
   {/snippet}
 
   <button class="test-btn" class:on={testing} onclick={toggleTest}>
-    {testing ? '■ Arrêter le test' : '▶ Lancer le test sur la télé'}
+    {#if testing}<Glyph name="stop" /> Arrêter le test{:else}<Glyph name="play" /> Lancer le test sur la télé{/if}
   </button>
   {#if testNote}<p class="bad">{testNote}</p>{/if}
 
@@ -121,8 +122,8 @@
   {#snippet help()}
     <p>Les choix viennent du PC de la télé : seules ses vraies sorties sont proposées.</p>
     <p>
-      Pour une télé cathodique française (PAL), choisissez la définition <strong>720x576</strong>. L'image change au
-      prochain démarrage de la télé ; le son, tout de suite.
+      Pour une télé cathodique française (PAL), choisissez la définition <strong>720x576</strong>. L'image et le son
+      changent dès l'enregistrement.
     </p>
   {/snippet}
   {#if hwError}

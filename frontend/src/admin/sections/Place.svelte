@@ -1,5 +1,6 @@
 <!-- Weather place: search a city by name (Open-Meteo geocoding); coordinates by hand as a fallback. -->
 <script lang="ts">
+  import Glyph from '../../components/Glyph.svelte';
   import { adminApi, type Cfg, type Place } from '../api';
   import Help from '../ui/Help.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -87,9 +88,9 @@
     {/if}
   {/if}
 
-  <button class="link" onclick={() => (manual = !manual)}>{manual ? '▾' : '▸'} Coordonnées à la main</button>
+  <button class="link" onclick={() => (manual = !manual)}><Glyph name={manual ? 'caret-down' : 'caret-right'} /> Coordonnées à la main</button>
   {#if manual}
-    <label><span>Nom affiché</span><input bind:value={cfg.weather.location_name} placeholder="Tours" /></label>
+    <label><span>Nom affiché</span><input bind:value={cfg.weather.location_name} placeholder="Ma ville" /></label>
     <div class="two">
       <label><span>Latitude</span><input type="number" step="0.0001" inputmode="decimal" bind:value={cfg.weather.latitude} /></label>
       <label><span>Longitude</span><input type="number" step="0.0001" inputmode="decimal" bind:value={cfg.weather.longitude} /></label>
@@ -97,7 +98,7 @@
     <Help label="Où trouver ces nombres ?">
       <p>
         Dans Google Maps, appuyez longuement sur votre maison : les deux nombres apparaissent en haut (par exemple
-        <code>47.3941, 0.6848</code>). Le premier est la latitude, le second la longitude.
+        <code>48.8566, 2.3522</code>). Le premier est la latitude, le second la longitude.
       </p>
     </Help>
   {/if}

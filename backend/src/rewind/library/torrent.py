@@ -31,10 +31,14 @@ class Cancelled(RuntimeError):
     pass
 
 
+def _listen(port: int) -> str:
+    return f"0.0.0.0:{port},[::]:{port}"
+
+
 def _session(port: int):
     return lt.session(
         {
-            "listen_interfaces": f"0.0.0.0:{port},[::]:{port}",
+            "listen_interfaces": _listen(port),
             "enable_dht": True,
             "enable_lsd": True,  # peers on the local network
             "user_agent": "rewind/0.1",
@@ -60,6 +64,13 @@ class TorrentClient:
             if self._session is None:
                 self._session = _session(self.port)
             return self._session
+
+    def set_port(self, port: int) -> None:
+        """Listens on another port now; running downloads keep going."""
+        with self._lock:
+            self.port = port
+            if self._session is not None:
+                self._session.apply_settings({"listen_interfaces": _listen(port)})
 
     def download(
         self,
@@ -141,6 +152,12 @@ class Prober:
         self._results: dict[str, dict] = {}
         self._queue: queue.PriorityQueue = queue.PriorityQueue()
         self._seq = 0
+
+    def set_port(self, port: int) -> None:
+        with self._lock:
+            self.port = port
+            if self._session is not None:
+                self._session.apply_settings({"listen_interfaces": _listen(port)})
 
     def _ensure(self) -> None:
         with self._lock:

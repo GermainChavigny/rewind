@@ -46,3 +46,12 @@ describe('providers and links', () => {
     expect(phoneUrl('http://nas.lan:9117/', '192.168.1.12')).toBe('http://nas.lan:9117/');
   });
 });
+
+describe('subtitle languages', () => {
+  it('names languages in French and matches typing without accents', async () => {
+    const { fold, languageName, SUBTITLE_CODES } = await import('./helpers');
+    expect(languageName('en')).toBe('Anglais');
+    expect(fold('Français')).toBe('francais');
+    expect(new Set(SUBTITLE_CODES).size).toBe(SUBTITLE_CODES.length);
+  });
+});

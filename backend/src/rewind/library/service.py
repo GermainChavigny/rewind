@@ -48,6 +48,8 @@ class LibraryService:
         self.torrent = TorrentClient(self.downloads_dir, lib.torrent_port)
         self.prober = Prober(self.downloads_dir / "_probe", lib.torrent_port + 8)
         self._subs: OpenSubtitles | None = None
+        self.started = False
+        self.start_jobs = True  # False in tests: no background threads
         self.worker = JobWorker(
             self.db,
             self.media_dir,
@@ -55,7 +57,7 @@ class LibraryService:
             self.torrent,
             self.transcoder,
             subtitles=self.subtitles,
-            languages=lambda: self.config.opensubtitles.languages,
+            languages=lambda: self.config.subtitle_languages,
             slots=lib.download_slots,
         )
         self.series = SeriesManager(
@@ -68,8 +70,22 @@ class LibraryService:
 
     def start(self) -> None:
         """Start the job threads (resuming interrupted jobs) and the background chores."""
+        if self.started or not self.start_jobs:
+            return
+        self.started = True
         self.worker.start()
         threading.Thread(target=self._chores, daemon=True, name="library-chores").start()
+
+    def apply(self, old: Config) -> None:
+        """Applies a config saved from the admin, without a restart."""
+        lib = self.config.library
+        if lib.download_slots != old.library.download_slots:
+            self.worker.set_slots(lib.download_slots)
+        if lib.torrent_port != old.library.torrent_port:
+            self.torrent.set_port(lib.torrent_port)
+            self.prober.set_port(lib.torrent_port + 8)
+        if lib.enabled:
+            self.start()
 
     def _chores(self) -> None:
         self.backfill_overviews()

@@ -106,7 +106,7 @@ class PlaybackIn(BaseModel):
     duration: float | None = Field(default=None, ge=0)
     watched: bool | None = None
     started: bool | None = None  # playback started: stamps last_played_at
-    subtitle_mode: str | None = Field(default=None, pattern="^(fr|en|off)$")
+    subtitle_mode: str | None = Field(default=None, pattern="^([a-z]{2}|off)$")
     subtitle_offsets: dict[str, float] | None = None  # per language, seconds
     audio_track: int | None = Field(default=None, ge=0)
     fit: str | None = Field(default=None, pattern="^(contain|cover)$")

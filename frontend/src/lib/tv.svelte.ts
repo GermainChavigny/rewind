@@ -9,6 +9,11 @@
  *   In the movie screens they scroll the list under the cursor instead.
  * - Play/pause, next/previous, seek and volume drive the movie when one is
  *   playing, else YouTube. The library channel opens the library.
+ * - On the welcome screen (intro video, or the channel grid of a paused
+ *   channel), → opens the settings QR code (← closes it). It opens by itself
+ *   while REWIND is not set up yet.
+ * - The phone remote adds `home` (leave the movies for the welcome screen), a
+ *   touchpad and its keyboard; the TV reports what it shows (`reportToPhones`).
  */
 
 import { api, ApiError, learn, type Alarm, type Channel, type Media, type UiSettings, type Weather } from './api';
@@ -21,20 +26,22 @@ import { movie } from './movie.svelte';
 import { search, type SearchKind } from './search.svelte';
 import { wakeAudio } from './sound';
 import { announce, announceTime } from './voice';
+import { clickPointer, movePointer, scrollPointer } from './vpointer';
 import { YouTubeChannel } from './youtube';
 
-const GRID_BOOT_MS = 3000;
 const GRID_ZAP_MS = 2000;
 const OSD_MS = 3000;
 const ALARM_CHECK_MS = 4000;
 const WEATHER_REFRESH_MS = 15 * 60 * 1000;
 const OPEN_LIBRARY_MS = 900; // let the grid show the library channel first
+const REPORT_MS = 120; // groups quick changes (typing) before telling the phones
+const MAX_TEXT = 80;
 
 export type Osd = 'volume' | 'alarm' | null;
 /** Full screens. */
 export type Screen = 'alarm' | 'library' | 'results' | 'series' | 'advisor' | null;
 /** Above a screen; closing it shows the screen again. */
-export type Overlay = 'weather' | 'keyboard' | null;
+export type Overlay = 'weather' | 'keyboard' | 'setup' | null;
 const MOVIE_SCREENS: Screen[] = ['library', 'results', 'series', 'advisor'];
 
 class Tv {
@@ -54,6 +61,13 @@ class Tv {
   screen = $state<Screen>(null);
   overlay = $state<Overlay>(null);
   keyboardFor = $state<'search' | 'advisor'>('search');
+  /** On-screen keyboard: the text, and what a search looks for. */
+  kbText = $state('');
+  kbKind = $state<SearchKind>('movie');
+  /** Not set up yet (first start): the welcome screen shows the settings QR code. */
+  firstRun = $state(false);
+  /** The phone asked to turn the computer off: "end of broadcast" card. */
+  shuttingDown = $state(false);
   /** Series screen: the show, and where to start (resume point). */
   show = $state<Media | null>(null);
   showAt = $state<{ season?: number; episode?: number }>({});
@@ -77,6 +91,8 @@ class Tv {
   /** A/V sync test running until this time (ms), 0 = off. */
   avTestUntil = $state(0);
   private preview: HTMLAudioElement | null = null;
+  /** The movie screen to show again when the alarm screen closes. */
+  private alarmReturn = $state<Screen>(null);
 
   // --- boot -------------------------------------------------------------------
 
@@ -94,13 +110,40 @@ class Tv {
         await new Promise((r) => setTimeout(r, 5000));
       }
     }
-    this.flashGrid(GRID_BOOT_MS);
+    // Boot: the intro video alone, no channel grid over it.
+    if (this.firstRun) this.overlay = 'setup';
+    this.reportToPhones();
     setInterval(() => this.checkAlarm(), ALARM_CHECK_MS);
-    if (this.modules.weather) {
-      void this.refreshWeather();
-      setInterval(() => void this.refreshWeather(), WEATHER_REFRESH_MS);
-    }
+    void this.refreshWeather();
+    setInterval(() => void this.refreshWeather(), WEATHER_REFRESH_MS);
     if (this.modules.library) void library.init().catch(() => {});
+  }
+
+  /**
+   * Settings were saved from the phone: reload them without restarting
+   * (channels, keymap, alarm, modules, weather place, library).
+   */
+  private async reloadConfig(): Promise<void> {
+    if (!this.ready) return;
+    const hadLibrary = this.modules.library;
+    const before = this.current;
+    try {
+      await this.load();
+    } catch {
+      return;
+    }
+    void this.refreshWeather();
+    if (this.modules.library && !hadLibrary) void library.init().catch(() => {});
+    // Set up from the phone: the QR code has done its job.
+    if (!this.firstRun && this.overlay === 'setup') this.overlay = null;
+    if (!before) return;
+    const now = this.channels.find((c) => c.id === before.id) ?? null;
+    if (!now) return;
+    this.current = now;
+    // Its playlist changed while it plays: tune it again.
+    const playing = !this.screen && !movie.active && !this.intro;
+    if (playing && now.kind === 'youtube' && now.playlist_id !== before.playlist_id)
+      this.selectChannel(this.channels.indexOf(now) + 1);
   }
 
   private async load(): Promise<void> {
@@ -111,6 +154,7 @@ class Tv {
       api.state(),
     ]);
     this.ui = ui;
+    this.firstRun = ui.first_run;
     setLanguage(ui.language);
     this.keys = buildKeyLookup(ui.keymap);
     this.modules = Object.fromEntries(modules.map((m) => [m.id, m.configured]));
@@ -142,6 +186,38 @@ class Tv {
     return movie.active || MOVIE_SCREENS.includes(this.screen) || this.overlay === 'keyboard';
   }
 
+  /** The phone remote's layout: the movies one also while the alarm screen is open from there. */
+  get remoteMode(): 'tv' | 'movies' {
+    return this.inMovieUI || (this.screen === 'alarm' && this.alarmReturn) ? 'movies' : 'tv';
+  }
+
+  /** Welcome screen: the intro video, or the channel grid of a paused channel. */
+  get welcome(): boolean {
+    return (
+      this.ready &&
+      !this.screen &&
+      !this.overlay &&
+      !movie.active &&
+      !this.difficulty &&
+      !this.ringing &&
+      !this.shuttingDown &&
+      (this.intro || this.paused)
+    );
+  }
+
+  /**
+   * A click on the picture (not on a button) pauses what plays: a movie, an
+   * episode or a YouTube channel. Resuming stays on the play key / pause screen.
+   */
+  clickPause(): void {
+    if (this.ringing || this.screen || this.overlay || this.difficulty || !this.tvOn) return;
+    if (movie.active) {
+      if (!movie.paused && !movie.ended) movie.togglePlay();
+    } else if (this.current?.kind === 'youtube' && !this.paused && !this.intro) {
+      this.youtube?.togglePlay();
+    }
+  }
+
   // --- remote -----------------------------------------------------------------
 
   onKey(event: KeyboardEvent): void {
@@ -167,8 +243,14 @@ class Tv {
   /** What a remote action does (a key press, or the phone's virtual remote). */
   runAction(action: Action): void {
     if (this.ringing) return this.stopAlarm();
+    if (this.shuttingDown) return;
     this.avTestUntil = 0;
     if (action !== 'tv_power' && !this.tvOn) void this.setPower(true);
+    if (action === 'home') return this.goHome();
+    // Exceptionally, → on the welcome screen opens the settings QR code.
+    if (action === 'seek_forward' && this.welcome) return this.openOverlay('setup');
+    if (this.overlay === 'setup' && (action === 'seek_backward' || action === 'play_pause'))
+      return this.closeOverlay();
 
     const n = channelNumber(action);
     if (n !== null) return this.selectChannel(n);
@@ -232,6 +314,25 @@ class Tv {
     }
   }
 
+  /**
+   * Leaves the movies (phone remote): back to the welcome screen, with the
+   * intro video and no channel grid; the phone remote follows.
+   */
+  goHome(): void {
+    movie.stop();
+    this.youtube?.suspend();
+    clearTimeout(this.timers.library);
+    clearTimeout(this.timers.grid);
+    this.current = null;
+    this.screen = null;
+    this.overlay = null;
+    this.difficulty = null;
+    this.alarmReturn = null;
+    this.gridVisible = false;
+    this.paused = false;
+    this.intro = true;
+  }
+
   // --- movie screens ----------------------------------------------------------------
 
   /** The library (also the downloads list: unfinished items come first). */
@@ -246,6 +347,9 @@ class Tv {
   goSearch(): void {
     movie.stop();
     this.keyboardFor = 'search';
+    this.kbText = '';
+    // Movies or series: only what is configured can be searched.
+    this.kbKind = !library.features.search ? 'series' : !library.features.series ? 'movie' : search.kind;
     this.overlay = 'keyboard';
   }
 
@@ -258,17 +362,24 @@ class Tv {
 
   editKeywords(): void {
     this.keyboardFor = 'advisor';
+    this.kbText = advisor.keywords;
     this.overlay = 'keyboard';
   }
 
-  /** Keyboard validated: search, or the advisor's keywords. */
-  submitKeyboard(text: string, kind: SearchKind): void {
-    this.overlay = null;
+  /** Text typed on the TV keyboard, a real keyboard or the phone. */
+  setKeyboardText(text: string): void {
+    this.kbText = text.slice(0, MAX_TEXT);
+  }
+
+  /** Keyboard validated: search, or the advisor's keywords (empty = clear them). */
+  submitKeyboard(): void {
+    const text = this.kbText.trim();
     if (this.keyboardFor === 'advisor') {
+      this.overlay = null;
       advisor.keywords = text;
       return;
     }
-    this.searchFor(text, kind);
+    if (text) this.searchFor(text, this.kbKind);
   }
 
   searchFor(query: string, kind: SearchKind): void {
@@ -445,21 +556,92 @@ class Tv {
 
   private listenEvents(): void {
     const source = new EventSource('/api/tv/events');
+    // (Re)connected, e.g. after a backend restart: the phones need our state again.
+    source.onopen = () => this.ready && this.reportToPhones(true);
     source.onmessage = (message) => {
-      let event: { type: string; action?: string; chime?: string };
+      let event: PhoneEvent;
       try {
         event = JSON.parse(message.data);
       } catch {
         return;
       }
-      wakeAudio();
+      if (event.type !== 'config' && event.type !== 'pointer') wakeAudio();
       if (event.type === 'action' && event.action) this.runAction(event.action as Action);
+      else if (event.type === 'pointer') this.phonePointer(event);
+      else if (event.type === 'text') this.phoneText(event.text ?? '', !!event.submit);
+      else if (event.type === 'shutdown') this.endOfBroadcast();
+      else if (event.type === 'shutdown_failed') {
+        this.shuttingDown = false;
+        this.showDifficulty('difficulties.shutdown_failed', 6000);
+      }
       else if (event.type === 'avtest') this.startAvTest();
       else if (event.type === 'avtest_stop') this.avTestUntil = 0;
       else if (event.type === 'chime' && event.chime) this.previewChime(event.chime);
       else if (event.type === 'chime_stop') this.preview?.pause();
+      else if (event.type === 'config') void this.reloadConfig();
     };
     // EventSource reconnects by itself after a backend restart.
+  }
+
+  private phonePointer(e: PhoneEvent): void {
+    if (this.shuttingDown) return;
+    if (e.scroll) scrollPointer(e.scroll);
+    if (e.dx || e.dy) movePointer(e.dx ?? 0, e.dy ?? 0);
+    if (e.click) clickPointer();
+  }
+
+  private phoneText(text: string, submit: boolean): void {
+    if (this.overlay !== 'keyboard') return;
+    this.setKeyboardText(text);
+    if (submit) this.submitKeyboard();
+  }
+
+  /** The computer turns off in a few seconds: stop everything, show the card. */
+  private endOfBroadcast(): void {
+    this.stopAlarm();
+    this.youtube?.pause();
+    movie.pause();
+    this.overlay = null;
+    this.osd = null;
+    this.shuttingDown = true;
+  }
+
+  private lastReport = '';
+  private reportTimer: ReturnType<typeof setTimeout> | undefined;
+  private reporting = false;
+
+  /**
+   * Tells the phone remotes what the TV shows (movies or not, the keyboard and
+   * its text) now, then whenever it changes. `force` sends it even unchanged
+   * (the backend restarted and forgot it).
+   */
+  reportToPhones(force = false): void {
+    if (force) this.lastReport = '';
+    if (this.reporting) return void this.sendReport();
+    this.reporting = true;
+    $effect.root(() => {
+      $effect(() => {
+        // Read what the report depends on, then send it shortly after.
+        void [this.remoteMode, this.overlay, this.kbText, this.kbKind, this.keyboardFor];
+        clearTimeout(this.reportTimer);
+        this.reportTimer = setTimeout(() => this.sendReport(), REPORT_MS);
+      });
+    });
+  }
+
+  private sendReport(): void {
+    const body = JSON.stringify({
+      mode: this.remoteMode,
+      keyboard:
+        this.overlay === 'keyboard'
+          ? { text: this.kbText, purpose: this.keyboardFor === 'advisor' ? 'advisor' : this.kbKind }
+          : null,
+    });
+    if (body === this.lastReport) return;
+    this.lastReport = body;
+    fetch('/api/tv/report', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body }).catch(
+      () => (this.lastReport = ''),
+    );
   }
 
   startAvTest(seconds = 60): void {
@@ -494,6 +676,19 @@ class Tv {
     if (ms) this.later('difficulty', ms, () => (this.difficulty = null));
   }
 
+  /** Alarm settings, from the header of a movie screen: closing goes back there. */
+  openAlarm(): void {
+    if (this.screen === 'alarm') return;
+    this.alarmReturn = this.screen && MOVIE_SCREENS.includes(this.screen) ? this.screen : null;
+    this.openScreen('alarm');
+  }
+
+  closeAlarm(): void {
+    const back = this.alarmReturn;
+    this.alarmReturn = null;
+    this.openScreen(back);
+  }
+
   openScreen(screen: Screen): void {
     this.screen = screen;
     this.overlay = null;
@@ -510,6 +705,10 @@ class Tv {
   }
 
   private async refreshWeather(): Promise<void> {
+    if (!this.modules.weather) {
+      this.weather = null;
+      return;
+    }
     this.weather = await api.weather().catch(() => this.weather);
   }
 
@@ -540,6 +739,18 @@ function scrollHovered(direction: 1 | -1): void {
     }
     node = node.parentElement;
   }
+}
+
+interface PhoneEvent {
+  type: string;
+  action?: string;
+  chime?: string;
+  dx?: number;
+  dy?: number;
+  click?: boolean;
+  scroll?: number;
+  text?: string;
+  submit?: boolean;
 }
 
 export const tv = new Tv();

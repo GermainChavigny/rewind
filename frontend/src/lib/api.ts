@@ -30,6 +30,8 @@ export interface UiSettings {
     chime: string; // audio/chimes/<id>.mp3, or 'none'
   };
   crt_effects: boolean;
+  /** Not set up yet: the welcome screen shows the settings QR code. */
+  first_run: boolean;
 }
 
 export interface Alarm {
@@ -53,8 +55,10 @@ export interface Weather {
   location: string | null;
   code: number;
   hour: string;
-  day: { code: number; hi: number; lo: number };
-  periods: { id: 'morning' | 'afternoon' | 'evening'; code: number; temp: number }[];
+  /** Summary of today (offset 0), or of tomorrow once most panels are tomorrow. */
+  day: { offset: number; code: number; hi: number; lo: number };
+  /** The next three periods, the current one first; day 1 = tomorrow. */
+  periods: { id: 'morning' | 'afternoon' | 'evening'; day: number; code: number; temp: number }[];
 }
 
 export type MediaKind = 'movie' | 'series' | 'episode' | 'pack';
@@ -91,7 +95,7 @@ export interface Media {
   poster?: string | null;
   overview?: string | null;
   subtitles?: Record<string, string>;
-  subtitle_mode?: 'fr' | 'en' | 'off' | null;
+  subtitle_mode?: string | null; // 'off' or a language code
   subtitle_offsets?: Record<string, number>;
   audio_tracks?: AudioTrack[];
   audio_track?: number;
@@ -189,7 +193,7 @@ export interface PlaybackPatch {
   duration?: number;
   watched?: boolean;
   started?: boolean;
-  subtitle_mode?: 'fr' | 'en' | 'off';
+  subtitle_mode?: string;
   subtitle_offsets?: Record<string, number>;
   audio_track?: number;
   fit?: 'contain' | 'cover';
@@ -236,6 +240,7 @@ export const api = {
   power: () => call<{ on: boolean }>('GET', '/api/tv/power'),
   setPower: (on: boolean) => call<{ on: boolean }>('POST', '/api/tv/power', { on }),
   weather: () => call<Weather>('GET', '/api/weather'),
+  adminUrl: () => call<{ url: string; lan: boolean }>('GET', '/api/remote/admin-url'),
 
   // library
   library: () => call<Media[]>('GET', '/api/library'),

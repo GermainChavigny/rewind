@@ -23,6 +23,8 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
+from rewind.config import SUBTITLE_LANGUAGES
+
 log = logging.getLogger(__name__)
 
 ProgressCb = Callable[[float], None]
@@ -35,7 +37,8 @@ REMUX = ["-c", "copy"]
 WEB_VIDEO = {"h264"}
 WEB_AUDIO = {"aac", "mp3"}
 TEXT_SUBS = {"subrip", "srt", "ass", "ssa", "mov_text", "webvtt"}  # bitmap subs can't be VTT
-SUB_LANGS = {"fre": "fr", "fra": "fr", "fr": "fr", "eng": "en", "en": "en"}
+# Subtitle stream tags (ISO 639-2/B, 639-2/T or 639-1) → the 639-1 code used everywhere.
+SUB_LANGS = {tag: code for code, tags in SUBTITLE_LANGUAGES.items() for tag in (code, *tags)}
 
 
 class Transcoder:
@@ -115,11 +118,13 @@ class Transcoder:
 
     # --- work ----------------------------------------------------------------------
 
-    def extract_subtitles(self, src: Path, out_dir: Path, base: str) -> dict[str, str]:
-        """Embedded fr/en text subtitles → WebVTT (first track per language)."""
+    def extract_subtitles(
+        self, src: Path, out_dir: Path, base: str, langs: list[str] | None = None
+    ) -> dict[str, str]:
+        """Embedded text subtitles → WebVTT (first track per language, `langs` only)."""
         subs: dict[str, str] = {}
         for index, lang in self.subtitle_streams(src):
-            if lang in subs:
+            if lang in subs or (langs is not None and lang not in langs):
                 continue
             name = f"{base}.{lang}.vtt"
             out = out_dir / name

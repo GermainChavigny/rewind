@@ -7,11 +7,10 @@
   import { onMount } from 'svelte';
   import { t } from '../../lib/i18n';
   import { formatTime } from '../../lib/library.svelte';
-  import { movie } from '../../lib/movie.svelte';
+  import { LANG_NAMES, movie } from '../../lib/movie.svelte';
   import { reveal } from '../../lib/sound';
   import LibraryFooter from './LibraryFooter.svelte';
 
-  const SUB_LABELS: Record<string, string> = { fr: 'Français', en: 'English' };
   let root: HTMLElement;
   const ratio = $derived(movie.duration ? movie.time / movie.duration : 0);
   const audioLabel = $derived(movie.audioTracks.find((a) => a.index === movie.audioIndex)?.label ?? '—');
@@ -43,7 +42,7 @@
       <div class="row" data-reveal>
         <span class="label">{t('pause.subtitles')}</span>
         <button class="crt-btn cycle" onclick={() => movie.cycleSubtitles()}>
-          {SUB_LABELS[movie.subMode] ?? t('pause.none')}
+          {LANG_NAMES[movie.subMode] ?? t('pause.none')}
         </button>
       </div>
     {/if}

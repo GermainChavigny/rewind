@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Media } from './api';
-import { episodeCode, formatTime, isWatched, library, statusInfo } from './library.svelte';
+import { episodeCode, formatProgress, formatTime, isWatched, library, statusInfo } from './library.svelte';
 
 function media(fields: Partial<Media>): Media {
   return {
@@ -14,6 +14,8 @@ describe('library rules', () => {
   it('formats times like v1', () => {
     expect(formatTime(5400)).toBe('01:30:00');
     expect(formatTime(2820)).toBe('47:00');
+    expect(formatProgress(725, 5400)).toBe('0h12 / 1h30');
+    expect(formatProgress(725, 2820)).toBe('12 / 47 min');
     expect(episodeCode(2, 3)).toBe('S02E03');
   });
 

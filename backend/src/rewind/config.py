@@ -10,6 +10,7 @@ keeps the stored value when the client sends the mask back unchanged.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import tomllib
@@ -18,6 +19,8 @@ from typing import Any, Literal
 
 import tomli_w
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+log = logging.getLogger(__name__)
 
 MASK = "********"
 
@@ -145,11 +148,37 @@ class TmdbConfig(_Model):
     language: str = "fr-FR"
 
 
+# Subtitle languages that can be chosen (ISO 639-1, all served by OpenSubtitles),
+# with their ISO 639-2 B/T codes, used to recognise the tracks embedded in files.
+SUBTITLE_LANGUAGES: dict[str, tuple[str, ...]] = {
+    "ar": ("ara",), "bg": ("bul",), "ca": ("cat",), "cs": ("cze", "ces"),
+    "da": ("dan",), "de": ("ger", "deu"), "el": ("gre", "ell"), "en": ("eng",),
+    "es": ("spa",), "et": ("est",), "eu": ("baq", "eus"), "fa": ("per", "fas"),
+    "fi": ("fin",), "fr": ("fre", "fra"), "he": ("heb",), "hi": ("hin",),
+    "hr": ("hrv",), "hu": ("hun",), "id": ("ind",), "is": ("ice", "isl"),
+    "it": ("ita",), "ja": ("jpn",), "ko": ("kor",), "lt": ("lit",), "lv": ("lav",),
+    "ms": ("may", "msa"), "nl": ("dut", "nld"), "no": ("nor", "nob", "nno"),
+    "pl": ("pol",), "pt": ("por",), "ro": ("rum", "ron"), "ru": ("rus",),
+    "sk": ("slo", "slk"), "sl": ("slv",), "sr": ("srp",), "sv": ("swe",),
+    "th": ("tha",), "tr": ("tur",), "uk": ("ukr",), "vi": ("vie",), "zh": ("chi", "zho"),
+}  # fmt: skip
+MAX_SUBTITLE_LANGUAGES = 4
+
+
 class OpenSubtitlesConfig(_Model):
     api_key: str = secret()
     username: str = ""
     password: str = secret()
-    languages: list[str] = Field(default_factory=lambda: ["fr", "en"])
+    # Subtitle languages kept with each film (embedded or downloaded), ISO 639-1.
+    # Empty = the interface language (see `Config.subtitle_languages`).
+    languages: list[str] = Field(default_factory=list, max_length=MAX_SUBTITLE_LANGUAGES)
+
+    @model_validator(mode="after")
+    def _known_languages(self) -> OpenSubtitlesConfig:
+        bad = [c for c in self.languages if c not in SUBTITLE_LANGUAGES]
+        if bad:
+            raise ValueError(f"unknown subtitle language(s): {', '.join(bad)}")
+        return self
 
 
 class IndexerConfig(_Model):
@@ -177,6 +206,14 @@ class AdvisorProvider(_Model):
     json_mode: bool = True
 
 
+class SystemConfig(_Model):
+    """The TV computer itself."""
+
+    # How the virtual remote's power key turns the computer off:
+    # "poweroff" = systemctl poweroff, "fake" = only logged (sandbox, dev), "none" = no key.
+    shutdown: Literal["poweroff", "fake", "none"] = "poweroff"
+
+
 class AdminConfig(_Model):
     pin: str = secret()  # empty = no PIN on the admin API
 
@@ -195,7 +232,16 @@ class Config(_Model):
     opensubtitles: OpenSubtitlesConfig = Field(default_factory=OpenSubtitlesConfig)
     indexers: list[IndexerConfig] = Field(default_factory=list)
     advisor: list[AdvisorProvider] = Field(default_factory=list)
+    system: SystemConfig = Field(default_factory=SystemConfig)
     admin: AdminConfig = Field(default_factory=AdminConfig)
+
+    @property
+    def subtitle_languages(self) -> list[str]:
+        """The chosen subtitle languages, else the interface language."""
+        if self.opensubtitles.languages:
+            return list(self.opensubtitles.languages)
+        lang = self.general.language.split("-")[0].lower()
+        return [lang] if lang in SUBTITLE_LANGUAGES else []
 
 
 # --- Secret masking -------------------------------------------------------------
@@ -251,12 +297,20 @@ def restore_secrets(new: Config, old: Config) -> Config:
 
 
 class ConfigStore:
-    """Loads and atomically saves config.toml; thread-safe."""
+    """Loads and atomically saves config.toml; thread-safe. A hand edit of the
+    file is picked up on the next read, without a restart."""
 
     def __init__(self, path: Path):
         self.path = path
         self._lock = threading.Lock()
+        self._mtime = self._stat()
         self._config = self._load()
+
+    def _stat(self) -> int | None:
+        try:
+            return self.path.stat().st_mtime_ns
+        except OSError:
+            return None
 
     def _load(self) -> Config:
         if not self.path.exists():
@@ -265,6 +319,17 @@ class ConfigStore:
             return Config.model_validate(tomllib.load(f))
 
     def get(self) -> Config:
+        mtime = self._stat()
+        if mtime != self._mtime:
+            with self._lock:
+                if mtime != self._mtime:
+                    self._mtime = mtime
+                    try:
+                        self._config = self._load()
+                        log.info("config.toml changed on disk: reloaded")
+                    except (OSError, ValueError) as err:
+                        # A half-typed edit: keep the last good config.
+                        log.warning("config.toml not reloaded: %s", err)
         return self._config
 
     def save(self, config: Config) -> None:
@@ -279,3 +344,4 @@ class ConfigStore:
                 os.fsync(f.fileno())
             os.replace(tmp, self.path)
             self._config = config
+            self._mtime = self._stat()

@@ -130,11 +130,35 @@ server only) shows the 18 logos under the references, `?name=` to try a name.
 - `/admin/` (phone settings) and `/remote/` (virtual remote) are separate Vite
   pages next to the TV UI.
 - The TV page listens to `GET /api/tv/events` (Server-Sent Events, `events.py`):
-  virtual remote presses (`POST /api/remote/press`, same actions as the keymap),
-  the A/V sync test (flash + beep, `AvSyncTest.svelte`) and chime previews,
-  all sent from the phone. Key learning still uses polling (`/api/remote/learn`).
-- The virtual remote layout (grid cells per action) is stored in the database
-  (`kv.remote_layout`); channel keys show the channel's retro logo.
+  virtual remote presses (`POST /api/remote/press`, same actions as the keymap,
+  plus `home`), touchpad moves and clicks (`/api/remote/pointer`), text typed
+  on the phone (`/api/remote/text`), the end-of-broadcast card before a
+  shutdown, the A/V sync test (flash + beep, `AvSyncTest.svelte`) and chime
+  previews. Key learning still uses polling (`/api/remote/learn`).
+- The other way round, the TV reports what it shows (`PUT /api/tv/report`:
+  movies or not, the on-screen keyboard and its text) and the phone remotes
+  follow it on `GET /api/remote/events` (`routes/remote.py`).
+- The virtual remote has two modes, each with its own layout in the database
+  (`kv.remote_layout`, `kv.remote_layout.movies`): "tv" (channels, alarm…)
+  and "movies" (transport keys, a touchpad, `home` to leave the movies for
+  the welcome screen). When the TV keyboard is open, a text field on the
+  phone opens the phone's own keyboard.
+- Touchpad: the page cannot move the system cursor, so `lib/vpointer.ts`
+  plays the mouse itself (position, mouse/pointer events, clicks) and copies
+  every `:hover` CSS rule as a `.v-hover` rule. No system tool: works under
+  X11, cage/Wayland and on a dev Mac.
+- Computer power key (`POST /api/remote/shutdown`, `system.py`, after a
+  confirmation on the phone): end-of-broadcast card, `systemctl poweroff`,
+  then the TV plug off. `[system] shutdown = "fake"` only logs it (sandbox,
+  dev), `"none"` hides the key. polkit lets the active local session's user
+  power off without a password; a systemd user service is not in that
+  session, so phase 5 will need a polkit rule for the kiosk user.
+- Settings QR code: on the welcome screen (intro, or the channel grid of a
+  paused channel) a corner button or → shows a QR code of
+  `http://<lan-ip>:<port>/admin/` (`/api/remote/admin-url`). It shows by
+  itself until the setup wizard is finished (`/api/ui` `first_run`).
+- The REWIND brand mark (`components/Brand.svelte`, Roboto, SIL OFL) copies
+  the intro video's logo; every place showing the name as a logo uses it.
 - `hardware.py` lists video connectors/modes (DRM sysfs) and audio output ports
   (`pactl`), and applies the A/V offset live (`pactl set-port-latency-offset`)
   on save and while tuning; the video mode is applied at session start

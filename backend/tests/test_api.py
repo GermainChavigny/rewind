@@ -94,7 +94,11 @@ def _forecast():
     return {
         "utc_offset_seconds": 0,
         "hourly": {"time": times, "weather_code": [3] * 72, "temperature_2m": [12.4] * 72},
-        "daily": {"weather_code": [61], "temperature_2m_max": [16.6], "temperature_2m_min": [8.2]},
+        "daily": {
+            "weather_code": [61, 71],
+            "temperature_2m_max": [16.6, 4.4],
+            "temperature_2m_min": [8.2, -1.2],
+        },
     }
 
 
@@ -105,8 +109,11 @@ def test_weather(make_client, web):
     client = make_client(cfg)
     w = client.get("/api/weather").json()
     assert w["location"] == "Tours" and w["code"] == 3
-    assert w["day"] == {"code": 61, "hi": 17, "lo": 8}
-    assert [p["id"] for p in w["periods"]] == ["morning", "afternoon", "evening"]
+    # Which periods depends on the time of day (see test_weather_shows_what_is_coming).
+    today = {"offset": 0, "code": 61, "hi": 17, "lo": 8}
+    tomorrow = {"offset": 1, "code": 71, "hi": 4, "lo": -1}
+    assert w["day"] == (tomorrow if w["day"]["offset"] else today)
+    assert len(w["periods"]) == 3
     client.get("/api/weather")
     assert len(web.calls) == 1  # cached
 
@@ -161,6 +168,7 @@ def test_ui_settings(make_client):
     assert ui["language"] == "fr" and ui["keymap"]["tv_power"] == ["AudioVolumeMute"]
     assert ui["alarm"]["step_minutes"] == 10
     assert "admin" not in ui and "tmdb" not in ui
+    assert ui["first_run"] is True
 
 
 def test_serves_frontend(make_client, paths, tmp_path, monkeypatch):
@@ -171,3 +179,20 @@ def test_serves_frontend(make_client, paths, tmp_path, monkeypatch):
     client = make_client()
     assert "REWIND" in client.get("/").text
     assert client.get("/api/health").json()["status"] == "ok"
+
+
+def test_weather_shows_what_is_coming():
+    from datetime import datetime
+
+    from rewind.weather import upcoming_periods
+
+    def at(h, m=0):
+        got = upcoming_periods(datetime(2026, 11, 12, h, m))
+        return " ".join(f"{p[:3]}{d}@{t:%d-%H}" for p, d, t in got)
+
+    assert at(7) == "mor0@12-09 aft0@12-15 eve0@12-21"
+    assert at(10, 30) == "mor0@12-11 aft0@12-15 eve0@12-21"  # under way: the coming hour
+    assert at(14) == "aft0@12-15 eve0@12-21 mor1@13-09"
+    assert at(20) == "eve0@12-21 mor1@13-09 aft1@13-15"
+    assert at(23, 10) == "eve0@12-23 mor1@13-09 aft1@13-15"
+    assert at(2) == "mor0@12-09 aft0@12-15 eve0@12-21"

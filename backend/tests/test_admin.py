@@ -76,3 +76,24 @@ def test_geocode_shapes_places(make_client, web):
     assert client.get("/api/admin/geocode", params={"q": "T"}).json() == []
     web.routes.clear()
     assert client.get("/api/admin/geocode", params={"q": "Tours"}).status_code == 502
+
+
+def test_saving_applies_live_and_tells_the_tv(make_client):
+    client = make_client(sample_config())
+    app = client.app
+    events: list[dict] = []
+    app.state.events.publish = lambda e: events.append(e) or 1
+    calls: list = []
+    app.state.apply_display = lambda output, mode: calls.append((output, mode)) or False
+    cfg = client.get("/api/admin/config").json()
+    cfg["display"]["output"] = "HDMI-A-2"
+    cfg["display"]["mode"] = "720x576"
+    assert client.put("/api/admin/config", json=cfg).status_code == 200
+    assert calls == [("HDMI-A-2", "720x576")]
+    assert {"type": "config"} in events
+    # xrandr failed: the admin is told the display waits for a restart.
+    assert client.get("/api/admin/status").json()["restart_needed"] == ["display"]
+    app.state.apply_display = lambda output, mode: True
+    cfg["display"]["mode"] = "640x480"
+    client.put("/api/admin/config", json=cfg)
+    assert client.get("/api/admin/status").json()["restart_needed"] == []

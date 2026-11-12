@@ -5,5 +5,5 @@ import { tv } from './lib/tv.svelte';
 
 mount(App, { target: document.getElementById('app')! });
 
-// Debugging from the browser console / test scripts (like v1's window.tvApp).
+// Debugging from the browser console / test scripts.
 (window as unknown as { rewind: typeof tv }).rewind = tv;

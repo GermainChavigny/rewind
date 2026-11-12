@@ -4,6 +4,7 @@
   unless something new is typed (the server keeps the stored value).
 -->
 <script lang="ts">
+  import Glyph from '../../components/Glyph.svelte';
   import { untrack } from 'svelte';
 
   const MASK = '********';
@@ -31,7 +32,7 @@
 </script>
 
 <label>
-  <span>{label}{#if saved}<em> · enregistrée ✓</em>{/if}</span>
+  <span>{label}{#if saved}<em> · enregistrée <Glyph name="check" /></em>{/if}</span>
   <input
     type={password ? 'password' : 'text'}
     value={wasSaved ? text : value}

@@ -76,3 +76,19 @@ export function syncBeep(): number | null {
   osc.stop(at + 0.1);
   return (lead + (ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000;
 }
+
+/** What counts as clickable for the hover tick. */
+const CLICKABLE = 'button:not(:disabled), a[href], [role="button"], select, label';
+let hovered: Element | null = null;
+
+/**
+ * The reveal "tick" when the pointer enters a clickable element (once per
+ * element, not again while moving inside it). Listen on pointerover.
+ */
+export function hoverTick(event: PointerEvent): void {
+  if (event.pointerType === 'touch') return;
+  const el = (event.target as Element | null)?.closest?.(CLICKABLE) ?? null;
+  if (el === hovered) return;
+  hovered = el;
+  if (el) blip('tick');
+}

@@ -80,15 +80,33 @@ class JobWorker:
         self._cancelled: set[str] = set()
         self._transcoding: str | None = None
         self._started = False
+        self._threads = 0
+        self._slots_changed = threading.Condition()
 
     def start(self) -> None:
         if self._started:
             return
         self._started = True
-        for i in range(max(1, self.slots)):
-            threading.Thread(target=self._download_loop, daemon=True, name=f"dl-{i}").start()
+        self.set_slots(self.slots)
         threading.Thread(target=self._transcode_loop, daemon=True, name="transcode").start()
         self.resume_pending()
+
+    def set_slots(self, slots: int) -> None:
+        """Changes the number of parallel downloads at once (no restart).
+
+        Threads are only ever added: a thread whose index is above the new
+        count finishes its current job, then waits until slots go up again.
+        """
+        with self._slots_changed:
+            self.slots = max(1, slots)
+            if self._started:
+                while self._threads < self.slots:
+                    i = self._threads
+                    self._threads += 1
+                    threading.Thread(
+                        target=self._download_loop, args=(i,), daemon=True, name=f"dl-{i}"
+                    ).start()
+            self._slots_changed.notify_all()
 
     # --- API --------------------------------------------------------------------------
 
@@ -131,8 +149,10 @@ class JobWorker:
 
     # --- loops ------------------------------------------------------------------------
 
-    def _download_loop(self) -> None:
+    def _download_loop(self, index: int = 0) -> None:
         while True:
+            with self._slots_changed:
+                self._slots_changed.wait_for(lambda: index < self.slots)
             _, _, item_id = self._dl.get()
             item = self.db.get_media(item_id)
             if item_id in self._cancelled or not item:
@@ -314,8 +334,9 @@ class JobWorker:
         # a) embedded subtitles: same cut as the video → perfect sync;
         # b) missing languages: OpenSubtitles, matched on the release.
         self.db.patch_media(item_id, {"status": "fetching-subs"})
-        subs = self.transcoder.extract_subtitles(src, self.media_dir, item_id)
-        missing = [lang for lang in self.languages() if lang not in subs]
+        langs = self.languages()
+        subs = self.transcoder.extract_subtitles(src, self.media_dir, item_id, langs)
+        missing = [lang for lang in langs if lang not in subs]
         client = self.subtitles()
         if missing and client:
             try:

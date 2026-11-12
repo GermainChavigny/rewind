@@ -184,6 +184,9 @@
     text-align: left;
     border-bottom: 2px solid var(--crt-divider);
   }
+  .row:hover:not(.active) {
+    background: var(--crt-hover);
+  }
   .row.active {
     background: var(--crt-accent);
     color: var(--crt-accent-ink);

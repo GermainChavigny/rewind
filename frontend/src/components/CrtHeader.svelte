@@ -1,6 +1,7 @@
 <!--
   Retro set-top-box header: title (+ meta), then clock / weather / date on the
-  right (click → weather popup) and the alarm indicator when it is armed.
+  right (click → weather popup) and the alarm indicator when it is armed
+  (click → alarm settings).
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -17,7 +18,7 @@
   {#if meta}<span class="meta">{@render meta()}</span>{/if}
   <span class="right">
     {#if tv.modules.alarm && tv.alarm.enabled}
-      <span class="alarm"><BellIcon size={16} />{tv.alarm.time}</span>
+      <button class="alarm" onclick={() => tv.openAlarm()}><BellIcon size={16} />{tv.alarm.time}</button>
     {/if}
     <button class="clock" onclick={() => tv.openOverlay('weather')} disabled={!tv.weather}>
       <Clock part="time" />

@@ -24,6 +24,8 @@ echo "== refreshing sandbox data from v1"
 export REWIND_DATA_DIR="$DATA" REWIND_CONFIG_DIR="$CONF"
 (cd "$REPO/backend" && "$UV" run --quiet rewind import-v1 --overwrite-config >/dev/null)
 sed -i 's/^provider = "shelly"/provider = "fake"/' "$CONF/config.toml"
+# The power key of its virtual remote must not turn the real computer off.
+sed -i 's/^shutdown = "poweroff"/shutdown = "fake"/' "$CONF/config.toml"
 # Its own BitTorrent ports: the TV's v2 may run at the same time.
 sed -i 's/^torrent_port = .*/torrent_port = 6893/' "$CONF/config.toml"
 

@@ -1,5 +1,6 @@
-"""Events pushed to the TV page (Server-Sent Events): virtual remote presses,
-the A/V sync test, chime previews. Publishing works from any thread."""
+"""Server-Sent Events. One bus to the TV page (virtual remote presses, pointer,
+typed text, the A/V sync test, chime previews), one to the phone remotes (what
+the TV shows, so the remote can adapt). Publishing works from any thread."""
 
 from __future__ import annotations
 
@@ -29,8 +30,9 @@ class EventBus:
             loop.call_soon_threadsafe(queue.put_nowait, event)
         return len(subscribers)
 
-    async def stream(self) -> AsyncIterator[str]:
-        """SSE lines for one subscriber, with keep-alive comments."""
+    async def stream(self, first: dict | None = None) -> AsyncIterator[str]:
+        """SSE lines for one subscriber, with keep-alive comments. `first` is sent
+        on connection (e.g. the current state)."""
         loop = asyncio.get_running_loop()
         queue: asyncio.Queue = asyncio.Queue(maxsize=100)
         entry = (loop, queue)
@@ -38,6 +40,8 @@ class EventBus:
             self._subscribers.append(entry)
         try:
             yield ": connected\n\n"
+            if first is not None:
+                yield f"data: {json.dumps(first)}\n\n"
             while True:
                 try:
                     event = await asyncio.wait_for(queue.get(), KEEPALIVE_S)

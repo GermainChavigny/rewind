@@ -52,7 +52,7 @@
     {#if tv.weather}
       <button class="weather" onclick={() => tv.openOverlay('weather')}>
         <WeatherIcon code={tv.weather.code} size={20} />
-        {tv.weather.periods.find((p) => p.id === 'afternoon')?.temp ?? ''}°
+        {tv.weather.periods[0]?.temp ?? ''}°
       </button>
     {/if}
     <span class="clock"><Clock part="time" /></span>

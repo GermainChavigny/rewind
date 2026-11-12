@@ -10,7 +10,6 @@ from typing import Literal
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ValidationError
 
 from rewind import checks, hardware
@@ -20,8 +19,6 @@ from rewind.context import AppContext, get_ctx
 router = APIRouter(prefix="/api/admin")
 # The TV side of key learning (no PIN: the kiosk is on the local network only).
 remote = APIRouter(prefix="/api/remote")
-
-tv = APIRouter(prefix="/api/tv")
 
 
 def check_pin(
@@ -45,12 +42,27 @@ def put_config(body: dict, request: Request, ctx: AppContext = Depends(check_pin
         new = Config.model_validate(body)
     except ValidationError as err:
         raise HTTPException(422, err.errors(include_url=False, include_context=False)) from err
-    old_audio = ctx.config.audio
-    ctx.config_store.save(restore_secrets(new, ctx.config))
-    audio = ctx.config.audio
-    if audio != old_audio and audio.output_port:
-        request.app.state.apply_av(audio.output_port, audio.av_offset_ms)
+    old = ctx.config
+    ctx.config_store.save(restore_secrets(new, old))
+    apply_config(request, old, ctx.config)
     return masked(ctx.config)
+
+
+def apply_config(request: Request, old: Config, new: Config) -> None:
+    """Applies a saved config at once. What cannot be changed live is listed in
+    `restart_needed` (shown by the admin) until the next start."""
+    state = request.app.state
+    pending: set[str] = state.restart_needed
+    if new.audio != old.audio and new.audio.output_port:
+        state.apply_av(new.audio.output_port, new.audio.av_offset_ms)
+    if (new.display.output, new.display.mode) != (old.display.output, old.display.mode):
+        if state.apply_display(new.display.output, new.display.mode):
+            pending.discard("display")
+        else:
+            pending.add("display")
+    state.library.apply(old)
+    # The TV page reloads channels, keymap, alarm, weather… (no restart).
+    state.events.publish({"type": "config"})
 
 
 @router.get("/schema")
@@ -71,13 +83,16 @@ def status(request: Request, ctx: AppContext = Depends(check_pin)) -> dict:
         "weather": config.weather.latitude is not None,
         "library": config.library.enabled,
         "version": request.app.version,
+        "restart_needed": sorted(request.app.state.restart_needed),
     }
 
 
 @router.post("/setup/complete")
-def setup_complete(ctx: AppContext = Depends(check_pin)) -> dict:
+def setup_complete(request: Request, ctx: AppContext = Depends(check_pin)) -> dict:
     """The wizard is finished: the admin shows the settings menu from now on."""
     ctx.db.set_kv("setup_done", True)
+    # The TV stops showing the setup QR code on its welcome screen.
+    request.app.state.events.publish({"type": "config"})
     return {"first_run": False}
 
 
@@ -226,59 +241,3 @@ def tv_event(body: TvEventIn, request: Request, ctx: AppContext = Depends(check_
     """Asks the TV to run the A/V sync test or play an alarm chime."""
     event = body.model_dump(exclude_none=True)
     return {"delivered": request.app.state.events.publish(event)}
-
-
-# --- Virtual remote (no PIN: it does what the physical remote does) ----------------------
-
-
-class PressIn(BaseModel):
-    action: str = Field(pattern="^[a-z0-9_]{1,40}$")
-
-
-@remote.post("/press")
-def remote_press(body: PressIn, request: Request) -> dict:
-    ctx: AppContext = request.app.state.ctx
-    if body.action not in ctx.config.remote.keys:
-        raise HTTPException(404, "unknown remote action")
-    return {
-        "delivered": request.app.state.events.publish({"type": "action", "action": body.action})
-    }
-
-
-@remote.get("/layout")
-def remote_layout(request: Request) -> dict:
-    ctx: AppContext = request.app.state.ctx
-    keys = ctx.config.remote.keys
-    return {
-        "actions": list(keys),
-        "keys": keys,
-        "layout": ctx.db.get_kv("remote_layout", None),
-    }
-
-
-class LayoutIn(BaseModel):
-    cols: int = Field(ge=2, le=6)
-    rows: int = Field(ge=3, le=14)
-    cells: dict[str, int]
-
-
-@remote.put("/layout")
-def save_remote_layout(body: LayoutIn, request: Request) -> dict:
-    ctx: AppContext = request.app.state.ctx
-    size = body.cols * body.rows
-    cells = {a: i for a, i in body.cells.items() if a in ctx.config.remote.keys and 0 <= i < size}
-    if len(set(cells.values())) != len(cells):
-        raise HTTPException(422, "two buttons on the same cell")
-    layout = {"cols": body.cols, "rows": body.rows, "cells": cells}
-    ctx.db.set_kv("remote_layout", layout)
-    return layout
-
-
-@tv.get("/events")
-async def tv_events(request: Request) -> StreamingResponse:
-    """Server-Sent Events for the TV page (virtual remote, sync test, chimes)."""
-    return StreamingResponse(
-        request.app.state.events.stream(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
