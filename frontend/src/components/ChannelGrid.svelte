@@ -7,6 +7,8 @@
 -->
 <script lang="ts">
   import { t } from '../lib/i18n';
+  import { retroVariant } from '../lib/logos';
+  import ChannelLogo from './ChannelLogo.svelte';
   import { movie } from '../lib/movie.svelte';
   import { tv } from '../lib/tv.svelte';
   import BellIcon from './BellIcon.svelte';
@@ -30,18 +32,21 @@
 >
   <div class="grid">
     {#each tv.channels as ch (ch.id)}
+      {@const variant = retroVariant(ch.logo)}
       {@const logo = ch.logo ? tv.logos[ch.logo] : null}
       <button
         class="tile"
         class:current={tv.current?.id === ch.id}
         onclick={() => tv.selectChannel(ch.number)}
       >
-        {#if logo}
+        {#if variant}
+          <ChannelLogo number={ch.number} name={ch.name} {variant} />
+        {:else if logo}
           <img src={logo} alt={ch.name} draggable="false" />
         {:else}
           <span class="fallback"><b>{ch.number}</b>{ch.name}</span>
         {/if}
-        {#if logo && ch.show_name}<span class="name">{ch.name}</span>{/if}
+        {#if !variant && logo && ch.show_name}<span class="name">{ch.name}</span>{/if}
       </button>
     {/each}
   </div>

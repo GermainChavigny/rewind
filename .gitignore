@@ -11,3 +11,4 @@ frontend/dist/
 /data/
 *.log
 .DS_Store
+frontend/dev/*.jpg

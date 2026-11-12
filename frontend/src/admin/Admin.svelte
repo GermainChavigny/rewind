@@ -6,6 +6,8 @@
 -->
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import ChannelLogo from '../components/ChannelLogo.svelte';
+  import { retroVariant } from '../lib/logos';
   import { adminApi, type Cfg, NeedsPin, type Logo, rememberPin, slug, type Status } from './api';
 
   type Section =
@@ -105,7 +107,7 @@
     if (!cfg || cfg.channels.length >= 9) return;
     const n = cfg.channels.length + 1;
     cfg.channels.push({
-      id: `chaine-${n}`, name: `Chaîne ${n}`, show_name: false, logo: null, kind: 'youtube',
+      id: `chaine-${n}`, name: `Chaîne ${n}`, show_name: false, logo: 'retro:1', kind: 'youtube',
       playlist_id: '', save_progress: true, alarm: false,
     }); // prettier-ignore
   }
@@ -278,6 +280,17 @@
           <strong>{i + 1}</strong>
           <input bind:value={ch.name} onchange={() => renameChannel(ch)} placeholder="Nom" />
         </div>
+        <div class="retro-pick">
+          {#each [1, 2] as v (v)}
+            <button
+              class:selected={retroVariant(ch.logo) === v}
+              aria-label="Style {v}"
+              onclick={() => { ch.logo = `retro:${v}`; logoFor = null; }}
+            >
+              <ChannelLogo number={i + 1} name={ch.name || ' '} variant={v} />
+            </button>
+          {/each}
+        </div>
         <div class="row">
           <button onclick={() => moveChannel(i, -1)} disabled={i === 0}>▲</button>
           <button onclick={() => moveChannel(i, 1)} disabled={i === cfg!.channels.length - 1}>▼</button>
@@ -294,15 +307,16 @@
           <label><span>Identifiant de la playlist</span><input bind:value={ch.playlist_id} placeholder="PL…" /></label>
           <label class="check"><input type="checkbox" bind:checked={ch.save_progress} /> <span>Reprendre là où on s'est arrêté</span></label>
         {/if}
-        <label class="check"><input type="checkbox" bind:checked={ch.show_name} /> <span>Afficher le nom à côté du logo</span></label>
+        {#if retroVariant(ch.logo) === null}
+          <label class="check"><input type="checkbox" bind:checked={ch.show_name} /> <span>Afficher le nom sous l'image</span></label>
+        {/if}
         <div class="logo-pick">
           <button onclick={() => (logoFor = logoFor === i ? null : i)}>
             {#if logoUrl(ch.logo)}<img src={logoUrl(ch.logo)} alt="" />{/if}
-            Logo : {logoName(ch.logo)}
+            {retroVariant(ch.logo) === null ? `Image : ${logoName(ch.logo)}` : 'Utiliser une autre image…'}
           </button>
           {#if logoFor === i}
             <div class="logos">
-              <button onclick={() => { ch.logo = null; logoFor = null; }}>Aucun</button>
               {#each logos as l (l.id)}
                 <button class:selected={ch.logo === l.id} onclick={() => { ch.logo = l.id; logoFor = null; }}>
                   <img src={l.url} alt={l.id} />
@@ -469,6 +483,22 @@
   }
   code {
     font-size: 15px;
+  }
+  .retro-pick {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 8px 0;
+  }
+  .retro-pick button {
+    padding: 0;
+    aspect-ratio: 1;
+    border: 3px solid transparent;
+    background: #000;
+    overflow: hidden;
+  }
+  .retro-pick .selected {
+    border-color: var(--accent);
   }
   .logo-pick button img,
   .logos img {
