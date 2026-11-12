@@ -41,4 +41,6 @@ jobs:
       - uses: actions/checkout@v4
       - run: bash -n deploy/boot/rewind-boot deploy/boot/tv-switch deploy/boot/install-boot-menu
       - run: python3 deploy/boot/tests/test_rewind_boot.py
-      - run: sh -n deploy/kiosk/start-v2 && sh -n deploy/kiosk/xinitrc-v2
+      - run: sh -n deploy/kiosk/start-v2 && sh -n deploy/kiosk/xinitrc-v2 && sh -n deploy/kiosk/rewind-kiosk
+      - run: bash -n deploy/install.sh
+      - run: python3 deploy/tests/test_install.py

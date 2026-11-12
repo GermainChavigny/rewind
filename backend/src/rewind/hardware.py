@@ -121,10 +121,33 @@ def apply_av_offset(port: str | None, offset_ms: int, run: Runner = _run) -> boo
     return False
 
 
-def apply_display(output: str | None, mode: str | None, run: Runner = _run) -> bool:
-    """Switches the video output/mode now (X11 `xrandr`). False = only at next start."""
+def wayland_sockets() -> list[str]:
+    """Wayland displays of the user (cage's), e.g. ["wayland-0"]."""
+    runtime = Path(_session_env()["XDG_RUNTIME_DIR"])
+    try:
+        return sorted(p.name for p in runtime.glob("wayland-*") if not p.name.endswith(".lock"))
+    except OSError:
+        return []
+
+
+def apply_display(
+    output: str | None,
+    mode: str | None,
+    run: Runner = _run,
+    wayland: list[str] | None = None,
+) -> bool:
+    """Switches the video output/mode now: cage (`wlr-randr`) or X11 (`xrandr`).
+    False = only at the next start."""
     if not output:
         return False
+    for socket in wayland_sockets() if wayland is None else wayland:
+        try:
+            # Same DRM names (HDMI-A-2) as the config.
+            args = ["--mode", mode] if mode else ["--preferred"]
+            run(["env", f"WAYLAND_DISPLAY={socket}", "wlr-randr", "--output", output, *args])
+            return True
+        except (OSError, subprocess.SubprocessError):
+            continue
     # Config uses DRM names (HDMI-A-2); X11 calls it HDMI-2.
     names = [output.replace("HDMI-A-", "HDMI-"), output]
     args = ["--mode", mode] if mode else ["--auto"]

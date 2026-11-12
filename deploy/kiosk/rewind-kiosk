@@ -1,0 +1,81 @@
+#!/bin/sh
+# REWIND on the TV screen: cage (Wayland kiosk compositor) + Chromium.
+#
+# Started by rewind-kiosk.service on tty1, or by the v1/v2 boot menu. Runs as
+# the TV user in a login session; the backend is the rewind.service user
+# service (started here if it is not running yet).
+#
+#   rewind-kiosk            start cage, which runs `rewind-kiosk --inside`
+#   rewind-kiosk --inside   (inside cage) video mode, then Chromium
+set -u
+
+HERE="$(cd "$(dirname "$0")" && pwd -P)"
+RELEASE="$(cd "$HERE/../.." && pwd -P)"           # /opt/rewind/releases/<x>
+PREFIX="${REWIND_INSTALL_DIR:-$(cd "$RELEASE/../.." && pwd -P)}"
+[ -r "$PREFIX/rewind.env" ] && . "$PREFIX/rewind.env"
+PORT="${REWIND_PORT:-8080}"
+REWIND="${REWIND_CMD:-$RELEASE/venv/bin/rewind}"
+DATA="${XDG_DATA_HOME:-$HOME/.local/share}/rewind"
+LOG="${XDG_STATE_HOME:-$HOME/.local/state}/rewind"
+mkdir -p "$LOG"
+
+cfg() { "$REWIND" config-get "$1" 2>/dev/null; }
+
+if [ "${1:-}" != --inside ]; then
+  # --- backend --------------------------------------------------------------------
+  systemctl --user start rewind.service 2>/dev/null
+  i=0
+  while [ $i -lt 60 ]; do
+    python3 -c "import urllib.request as u; u.urlopen('http://127.0.0.1:$PORT/api/health', timeout=1)" \
+      2>/dev/null && break
+    i=$((i + 1)); sleep 0.5
+  done
+
+  # --- audio: A/V offset (a video path that lags, e.g. HDMI→SCART) ---------------
+  PORT_NAME="$(cfg audio.output_port)"
+  OFFSET_MS="$(cfg audio.av_offset_ms)"
+  if [ -n "$PORT_NAME" ] && [ -n "$OFFSET_MS" ]; then
+    for card in $(pactl list cards short 2>/dev/null | cut -f2); do
+      pactl set-port-latency-offset "$card" "$PORT_NAME" $((OFFSET_MS * 1000)) 2>/dev/null && break
+    done
+  fi
+  pactl set-sink-volume @DEFAULT_SINK@ 100% 2>/dev/null
+
+  # -s: Ctrl+Alt+F2… still reach a text console.
+  exec cage -s -- "$0" --inside >"$LOG/cage.log" 2>&1
+fi
+
+# --- inside cage: video mode from config.toml (DRM names, e.g. HDMI-A-2) ---------
+OUTPUT="$(cfg display.output)"
+MODE="$(cfg display.mode)"
+if [ -n "$OUTPUT" ]; then
+  if [ -n "$MODE" ]; then wlr-randr --output "$OUTPUT" --mode "$MODE"
+  else wlr-randr --output "$OUTPUT" --preferred; fi
+fi
+
+# uBlock Origin Lite: v1's copy if there is one, else the one install.sh fetched.
+EXT=""
+for dir in "$HOME/ublock_extension" "$DATA/ublock"; do
+  if [ -f "$dir/manifest.json" ]; then EXT="--load-extension=$dir"; break; fi
+done
+
+LANG_UI="$(cfg general.language)"
+CHROMIUM="$(command -v chromium || command -v chromium-browser)"
+# Flags kept from v1 (docs/v1-behaviors.md): autoplay without a gesture,
+# audio/video tracks, no first-run or crash bubble, no update checks.
+exec "$CHROMIUM" \
+  --ozone-platform=wayland \
+  --kiosk \
+  --noerrdialogs \
+  --no-first-run \
+  --disable-session-crashed-bubble \
+  --disable-features=Translate \
+  --password-store=basic \
+  --lang="${LANG_UI:-fr}" \
+  --check-for-update-interval=31536000 \
+  --disk-cache-size=1 \
+  --autoplay-policy=no-user-gesture-required \
+  --enable-blink-features=AudioVideoTracks \
+  --user-data-dir="$DATA/chromium" \
+  $EXT \
+  "http://127.0.0.1:$PORT/" >"$LOG/chromium.log" 2>&1

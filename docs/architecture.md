@@ -100,9 +100,10 @@ While v2 is being developed, v1 stays in daily use:
   Shelly IP, weather location, A/V offset, video output, API keys);
   `--overwrite-config` regenerates it. v1 is never modified.
 - v2 listens on port 8080 (v1 uses 5000 and 8000).
-- `deploy/kiosk/start-v2`: temporary X session for v2 (backend + Chromium
-  kiosk with uBlock Origin Lite), launched by the boot menu. Replaced by the
-  cage kiosk in phase 5.
+- The boot menu's v2 entry starts the installed cage kiosk
+  (`/opt/rewind/current/deploy/kiosk/rewind-kiosk`) when there is one, else
+  `deploy/kiosk/start-v2`: an X session from the development checkout
+  (backend + Chromium with uBlock Origin Lite).
 
 See [v1-behaviors.md](v1-behaviors.md) for the checklist of v1 details to carry over.
 
@@ -150,9 +151,9 @@ server only) shows the 18 logos under the references, `?name=` to try a name.
 - Computer power key (`POST /api/remote/shutdown`, `system.py`, after a
   confirmation on the phone): end-of-broadcast card, `systemctl poweroff`,
   then the TV plug off. `[system] shutdown = "fake"` only logs it (sandbox,
-  dev), `"none"` hides the key. polkit lets the active local session's user
-  power off without a password; a systemd user service is not in that
-  session, so phase 5 will need a polkit rule for the kiosk user.
+  dev), `"none"` hides the key. A systemd user service is outside the TV's
+  login session, so install.sh adds a polkit rule
+  (`deploy/polkit/50-rewind.rules`) letting the TV user power off and reboot.
 - Settings QR code: on the welcome screen (intro, or the channel grid of a
   paused channel) a corner button or → shows a QR code of
   `http://<lan-ip>:<port>/admin/` (`/api/remote/admin-url`). It shows by
@@ -162,9 +163,39 @@ server only) shows the 18 logos under the references, `?name=` to try a name.
 - `hardware.py` lists video connectors/modes (DRM sysfs) and audio output ports
   (`pactl`), and applies the A/V offset live (`pactl set-port-latency-offset`)
   on save and while tuning; the video mode is applied at session start
-  (`deploy/kiosk/xinitrc-v2`).
+  (`rewind-kiosk`, `wlr-randr`) and live from the admin (`wlr-randr` on cage's
+  Wayland socket, `xrandr` under X).
 - `checks.py`: the admin "Test" buttons (TMDB, OpenSubtitles, Jackett, AI
   providers, Shelly plug) and AI model lists, run with the settings as typed.
 - Alarm chimes: `frontend/public/audio/chimes/*.mp3`. `classic` is the v1 chime;
   the others are synthesised by `scripts/make-chimes.py` (no third-party audio).
   With a chime, the alarm works without an alarm channel.
+
+## Installation and updates
+
+`deploy/install.sh` (published as a release asset next to `rewind.tar.gz`,
+built by `scripts/build-release.sh`):
+
+- **Root, once**: apt packages (`deploy/apt-packages`; PipeWire, or the
+  PulseAudio already there), `/opt/rewind` owned by the TV user, linger (the
+  user's services run without a login), the polkit rule,
+  `/usr/local/bin/rewind`, and in `service` mode `rewind-kiosk.service`
+  (cage + Chromium on tty1 with `PAMName=login`, so it is a real seat0
+  session for input, screen and sound).
+- **As the TV user**: `releases/<version>-<time>/` with a venv
+  (`--system-site-packages` for apt's `python3-libtorrent`, pip
+  `--require-hashes` from the exported `uv.lock`), the built UI and the deploy
+  files; `.complete` marks a finished build. `current` is switched atomically;
+  the current and previous releases are kept. `rewind.env` gives the port and
+  `REWIND_INSTALL_DIR`/`REWIND_FRONTEND_DIR` to `rewind.service` (user unit).
+- **Kiosk mode**: `service` (default), `boot-menu` (detected when v1's boot
+  menu is installed: nothing on tty1 changes, the menu's v2 entry starts the
+  kiosk, which starts the backend), `none`.
+- **Updates** (`updates.py`, `/api/admin/update`): the backend asks GitHub for
+  the latest release (cached 1 h) and starts `install.sh update` as a transient
+  user unit (`systemd-run --user --unit=rewind-update`), which outlives the
+  backend restart it ends with. Progress goes through `/opt/rewind/update.json`.
+  The TV page reloads itself when `/api/health` reports a new version. New apt
+  packages need root: the update then stops and says so.
+- Tests: `deploy/tests/test_install.py` runs install / update / rollback /
+  uninstall in a fake root with stubbed sudo, apt, systemctl and GitHub.

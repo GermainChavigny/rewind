@@ -1,5 +1,6 @@
 #!/bin/sh
 # Start the REWIND v2 graphical session (called by the boot menu).
-# Temporary X-based kiosk until the cage kiosk of phase 5.
+# Development checkout only: an X session. An installed TV (install.sh) runs
+# the cage kiosk instead (rewind-kiosk), which the boot menu prefers.
 HERE="$(cd "$(dirname "$0")" && pwd)"
 exec startx "$HERE/xinitrc-v2"

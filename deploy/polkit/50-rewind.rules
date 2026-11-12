@@ -1,0 +1,14 @@
+// REWIND: the phone's "turn the computer off" key. The backend runs as a
+// systemd user service, outside the TV's login session, so polkit would ask
+// for a password. Installed by install.sh (@USER@ = the TV user).
+polkit.addRule(function (action, subject) {
+  var power = [
+    "org.freedesktop.login1.power-off",
+    "org.freedesktop.login1.power-off-multiple-sessions",
+    "org.freedesktop.login1.reboot",
+    "org.freedesktop.login1.reboot-multiple-sessions",
+  ];
+  if (subject.user == "@USER@" && power.indexOf(action.id) >= 0) {
+    return polkit.Result.YES;
+  }
+});

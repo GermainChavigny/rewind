@@ -18,6 +18,7 @@
   import Remote from './sections/Remote.svelte';
   import Security from './sections/Security.svelte';
   import Tv from './sections/Tv.svelte';
+  import Updates from './Updates.svelte';
   import Icon from './ui/Icon.svelte';
   import Progress from './ui/Progress.svelte';
   import Window from './ui/Window.svelte';
@@ -308,6 +309,7 @@
       <span><span class="lamp todo"></span> à régler</span>
       <span><span class="lamp"></span> non utilisé</span>
     </p>
+    <div class="updates"><Updates /></div>
   {/if}
 </div>
 
@@ -468,6 +470,9 @@
     margin-top: 14px;
     font-size: 12px;
     color: #fff;
+  }
+  .updates {
+    margin-top: 18px;
   }
   .alert {
     margin-bottom: 14px;

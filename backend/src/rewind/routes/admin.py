@@ -96,6 +96,20 @@ def setup_complete(request: Request, ctx: AppContext = Depends(check_pin)) -> di
     return {"first_run": False}
 
 
+@router.get("/update")
+def update_status(request: Request, check: bool = False, ctx: AppContext = Depends(check_pin)):
+    """Installed version, latest release; `check=true` asks GitHub again now."""
+    return request.app.state.updater.status(check=check)
+
+
+@router.post("/update")
+def update_start(request: Request, ctx: AppContext = Depends(check_pin)) -> dict:
+    """Installs the latest release; the backend restarts at the end."""
+    if reason := request.app.state.updater.start():
+        raise HTTPException(409, reason)
+    return {"started": True}
+
+
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 
 

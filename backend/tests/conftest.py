@@ -7,6 +7,10 @@ from rewind.config import Channel, Config, ConfigStore
 from rewind.paths import Paths
 
 
+def _no_spawn(args):
+    raise AssertionError(f"tests must not run {args}")
+
+
 @pytest.fixture
 def paths(tmp_path):
     return Paths(
@@ -41,6 +45,7 @@ def make_client(paths, web):
             ConfigStore(paths.config / "config.toml").save(config)
         app = create_app(paths, http=httpx.Client(transport=httpx.MockTransport(web.handler)))
         app.state.poweroff = lambda mode: True  # never turn the test machine off
+        app.state.updater.spawn = _no_spawn  # never start a real update
         return TestClient(app)
 
     return make

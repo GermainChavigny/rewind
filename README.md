@@ -3,9 +3,7 @@
 > An 80s/90s TV experience for your mini PC: channels, a movie and series
 > library, alarm clock, weather… dressed up like a real channel of the era.
 
-**🚧 Work in progress (v2).** Installation is manual for now (see
-[Installation](#installation)); the one-command install lands in phase 5 — see
-the [roadmap](docs/roadmap.md).
+**🚧 Work in progress (v2)** — see the [roadmap](docs/roadmap.md).
 
 The user interface is in French for now; it is built for translation (i18n).
 
@@ -20,82 +18,52 @@ The user interface is in French for now; it is built for translation (i18n).
 
 ## Installation
 
-Target: a mini PC on **Debian 13** (amd64), plugged into the TV, with a user
-that logs in automatically on the console (tty1). Raspberry Pi OS Lite 64-bit
-(Pi 4/5) will be supported by the installer in phase 5.
-
-> Until `install.sh` exists (phase 5), these steps are manual. The X + openbox
-> kiosk below is temporary and will be replaced by a cage kiosk.
-
-### 1. System packages
+On a mini PC with **Debian 13** (amd64) or a **Raspberry Pi 4/5** with
+**Raspberry Pi OS Lite 64-bit**, plugged into the TV and connected to the
+network, log in as the user who will own the TV and run:
 
 ```bash
-sudo apt install git curl ffmpeg chromium xserver-xorg xinit openbox \
-                 unclutter pulseaudio pulseaudio-utils nodejs npm
-curl -LsSf https://astral.sh/uv/install.sh | sh     # installs uv in ~/.local/bin
+wget -qO- https://github.com/GermainChavigny/rewind/releases/latest/download/install.sh | bash
 ```
 
-Debian 13 ships Node 20.19, which is enough to build the interface.
+(or `curl -fsSL <same URL> | bash`). It asks for your password once (sudo),
+installs what it needs (cage, Chromium, ffmpeg…) and REWIND in `/opt/rewind`.
+Then reboot: the TV starts on REWIND and shows a QR code. Scan it with your
+phone to finish the setup (`http://<tv-ip>:8080/admin/`).
 
-### 2. Get REWIND and build it
+No sudo on this user? Run it as root with `bash -s -- --user <name>`.
 
-Clone into `~/rewind` (the boot scripts expect this path):
+### Updates
+
+From the phone: **Réglages → Mise à jour**. Or on the TV computer:
 
 ```bash
-git clone https://github.com/GermainChavigny/rewind.git ~/rewind
-cd ~/rewind/backend && uv sync              # Python deps (Python 3.11+, fetched by uv if needed)
-cd ~/rewind/frontend && npm ci && npm run build
+/opt/rewind/install.sh update       # latest release
+/opt/rewind/install.sh rollback     # back to the previous one
 ```
 
-### 3. Try it
+Updates never touch your settings and library (`~/.config/rewind`,
+`~/.local/share/rewind`). An update that needs new system packages asks you to
+run `/opt/rewind/install.sh update` yourself on the TV (sudo).
 
-From the TV console (not over SSH):
+### What it sets up
+
+- `rewind.service`: the backend, a systemd **user** service on port 8080.
+- `rewind-kiosk.service`: cage + Chromium on tty1, in place of the login
+  prompt (other consoles: Ctrl+Alt+F2).
+- uBlock Origin Lite for the YouTube channels, a polkit rule so the phone's
+  power key can turn the computer off, and `rewind` in `/usr/local/bin`.
+
+Options (after `bash -s --`): `--kiosk service|boot-menu|none`, `--port N`,
+`--no-ublock`, `--version X.Y.Z`, `--from rewind.tar.gz`. If REWIND v1's boot
+menu is installed, the installer keeps it and its v2 entry starts the cage kiosk.
+
+### Uninstall
 
 ```bash
-~/rewind/deploy/kiosk/start-v2
+/opt/rewind/install.sh uninstall            # keeps settings and library
+/opt/rewind/install.sh uninstall --purge    # removes them too
 ```
-
-This starts the backend on port 8080 and Chromium in kiosk mode. On first run
-the TV shows a QR code: scan it with your phone to open the settings
-(`http://<tv-ip>:8080/admin/`) and follow the setup wizard. Logs go to
-`~/.local/state/rewind/`.
-
-### 4. Start it at boot
-
-```bash
-~/rewind/deploy/boot/install-boot-menu
-```
-
-On the next boot, a small menu on tty1 lets you pick v1 or v2 with the remote
-(arrows + OK, or keys 1 / 2) and starts the default after 5 seconds. Change the
-default with `tv-switch v2` (add `--now` to switch immediately). To remove the
-menu and restore your original `~/.bash_profile`:
-`~/rewind/deploy/boot/install-boot-menu --remove`.
-
-### Where things live
-
-| What | Default path | Override |
-|---|---|---|
-| Settings (`config.toml`) | `~/.config/rewind/` | `REWIND_CONFIG_DIR` |
-| Database, posters, imports | `~/.local/share/rewind/` | `REWIND_DATA_DIR` |
-| Movies and series | `~/.local/share/rewind/media/` | `REWIND_MEDIA_DIR` |
-
-### Optional
-
-- **Torrent downloads**: needs a [Jackett](https://github.com/Jackett/Jackett)
-  instance; if a `jackett.service` user unit exists, the kiosk starts it.
-- **Ad blocking in YouTube channels**: put an unpacked uBlock Origin Lite in
-  `~/ublock_extension`; it is loaded automatically when present.
-
-### Update
-
-```bash
-cd ~/rewind && git pull
-cd backend && uv sync
-cd ../frontend && npm ci && npm run build
-```
-
-Then restart the session: `tv-switch v2 --now`.
 
 ## Development
 
@@ -119,6 +87,17 @@ npm run build                # dist/ is then served by `rewind serve` on :8080
 ```
 
 No hardware needed: set `[power] provider = "fake"` in `config.toml`.
+
+On the TV, a checkout can run without installing: `deploy/kiosk/start-v2`
+(an X session with the backend and Chromium, from the tty1 console).
+
+### Releases
+
+Bump the version in `backend/src/rewind/__init__.py` and
+`backend/pyproject.toml`, commit, then `scripts/release.sh`: it runs the
+checks, builds `dist/rewind.tar.gz` (UI, wheel, hashed requirements, deploy
+files: one archive for amd64 and arm64) and publishes it with `install.sh` as
+a GitHub release. `scripts/build-release.sh` only builds.
 
 ### Sandbox (try the UI from any browser)
 

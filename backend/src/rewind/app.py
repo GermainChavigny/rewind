@@ -20,6 +20,7 @@ from rewind.learn import KeyLearner
 from rewind.library.service import LibraryService
 from rewind.paths import Paths
 from rewind.routes import admin, core, devices, library, remote
+from rewind.updates import Updater
 from rewind.weather import WeatherService
 
 log = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ def create_app(
     app.state.apply_av = hardware.apply_av_offset
     app.state.apply_display = hardware.apply_display
     app.state.poweroff = system.poweroff  # replaced in tests: never turn the box off
+    app.state.updater = Updater.from_env(http, __version__)
     # Settings saved but only applied at the next start (e.g. no X display).
     app.state.restart_needed = set()
 

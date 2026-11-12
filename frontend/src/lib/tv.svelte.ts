@@ -557,7 +557,10 @@ class Tv {
   private listenEvents(): void {
     const source = new EventSource('/api/tv/events');
     // (Re)connected, e.g. after a backend restart: the phones need our state again.
-    source.onopen = () => this.ready && this.reportToPhones(true);
+    source.onopen = () => {
+      if (this.ready) this.reportToPhones(true);
+      void this.reloadIfUpdated();
+    };
     source.onmessage = (message) => {
       let event: PhoneEvent;
       try {
@@ -581,6 +584,19 @@ class Tv {
       else if (event.type === 'config') void this.reloadConfig();
     };
     // EventSource reconnects by itself after a backend restart.
+  }
+
+  private version: string | null = null;
+
+  /** After an update the backend restarts with a new version: load the new UI. */
+  private async reloadIfUpdated(): Promise<void> {
+    try {
+      const { version } = await (await fetch('/api/health')).json();
+      if (this.version && version && version !== this.version) location.reload();
+      this.version ??= version;
+    } catch {
+      /* backend still restarting: the next reconnection checks again */
+    }
   }
 
   private phonePointer(e: PhoneEvent): void {

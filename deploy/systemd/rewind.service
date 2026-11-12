@@ -1,0 +1,15 @@
+# REWIND backend (API + TV interface), a systemd *user* service of the TV user.
+# Installed by install.sh in ~/.config/systemd/user/ (@PREFIX@ = /opt/rewind).
+[Unit]
+Description=REWIND (API and TV interface)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=@PREFIX@/rewind.env
+ExecStart=@PREFIX@/current/venv/bin/rewind serve --port ${REWIND_PORT}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

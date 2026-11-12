@@ -38,6 +38,19 @@ export interface Hardware {
   }[];
 }
 
+export interface UpdateStatus {
+  current: string;
+  latest: string | null;
+  notes: string;
+  url: string | null;
+  available: boolean;
+  /** Installed with install.sh (a git checkout updates with git). */
+  can_update: boolean;
+  /** What install.sh last reported (update.json). */
+  progress: { state: 'running' | 'done' | 'failed'; message: string; version?: string } | null;
+  error: 'no_release' | 'unreachable' | null;
+}
+
 export type CheckService = 'tmdb' | 'opensubtitles' | 'indexer' | 'advisor' | 'power';
 
 export class NeedsPin extends Error {}
@@ -99,6 +112,8 @@ export const adminApi = {
   avOffset: (port: string, ms: number) => call<{ applied: boolean }>('POST', '/api/admin/av-offset', { port, ms }),
   tvEvent: (type: 'avtest' | 'avtest_stop' | 'chime' | 'chime_stop', chime?: string) =>
     call<{ delivered: number }>('POST', '/api/admin/tv-event', { type, chime }),
+  update: (check = false) => call<UpdateStatus>('GET', `/api/admin/update${check ? '?check=true' : ''}`),
+  startUpdate: () => call<{ started: boolean }>('POST', '/api/admin/update'),
   completeSetup: () => call<unknown>('POST', '/api/admin/setup/complete'),
 };
 

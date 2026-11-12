@@ -21,7 +21,15 @@ CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/rewind"
 DEFAULT_FILE="$CONF_DIR/boot-default"
 DELAY="${REWIND_BOOT_DELAY:-5}"
 DRY_RUN="${REWIND_BOOT_DRY_RUN:-0}"   # 1 = print the command instead of running it (tests)
-V2_LAUNCHER="${REWIND_V2_LAUNCHER:-$HOME/rewind/deploy/kiosk/start-v2}"
+# v2: the installed release (install.sh, cage kiosk) if there is one, else the
+# development checkout's X session.
+if [ -n "${REWIND_V2_LAUNCHER:-}" ]; then
+  V2_LAUNCHER="$REWIND_V2_LAUNCHER"
+elif [ -x /opt/rewind/current/deploy/kiosk/rewind-kiosk ]; then
+  V2_LAUNCHER=/opt/rewind/current/deploy/kiosk/rewind-kiosk
+else
+  V2_LAUNCHER="$HOME/rewind/deploy/kiosk/start-v2"
+fi
 
 launch_v1() {
   if [ "$DRY_RUN" = 1 ]; then echo "LAUNCH v1"; return 0; fi

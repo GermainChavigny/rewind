@@ -1,6 +1,6 @@
 #!/bin/sh
 # X session for REWIND v2: backend + Chromium kiosk.
-# Temporary (phase 2) — replaced by the cage kiosk in phase 5.
+# Development checkout only; installed TVs use rewind-kiosk (cage).
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 UV="${UV:-$HOME/.local/bin/uv}"

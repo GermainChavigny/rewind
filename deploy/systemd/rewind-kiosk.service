@@ -1,0 +1,32 @@
+# REWIND on the TV screen: cage (a Wayland kiosk compositor) running Chromium,
+# on tty1, as the TV user. Installed by install.sh in /etc/systemd/system/.
+# It replaces the login prompt on tty1; the others (Ctrl+Alt+F2…) stay.
+[Unit]
+Description=REWIND kiosk (cage + Chromium) on tty1
+After=systemd-user-sessions.service plymouth-quit-wait.service dbus.socket systemd-logind.service
+Wants=dbus.socket systemd-logind.service
+Conflicts=getty@tty1.service
+After=getty@tty1.service
+ConditionPathExists=/dev/tty1
+
+[Service]
+User=@USER@
+# A real login session on seat0: cage gets the screen and input devices,
+# PipeWire/PulseAudio the sound card.
+PAMName=login
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+Environment=XDG_SESSION_TYPE=wayland
+ExecStart=@PREFIX@/current/deploy/kiosk/rewind-kiosk
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

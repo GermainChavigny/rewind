@@ -1,0 +1,15 @@
+# Debian / Raspberry Pi OS packages REWIND needs (read by install.sh).
+# One per line; the audio server is chosen by install.sh (PipeWire, or the
+# PulseAudio already installed).
+python3
+python3-venv
+python3-libtorrent
+ffmpeg
+cage
+wlr-randr
+chromium
+fonts-dejavu-core
+pulseaudio-utils
+polkitd
+avahi-daemon
+ca-certificates
