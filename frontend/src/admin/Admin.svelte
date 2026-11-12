@@ -1,57 +1,65 @@
 <!--
-  Phone admin (served at /admin/). First run: a setup wizard walks through
-  the essentials. Afterwards, one screen per settings section. Every save
-  writes the whole config; masked secrets are sent back as they came and the
-  server keeps the stored value.
+  Phone admin (served at /admin/), early-90s online-service look. First run:
+  a wizard (welcome, 5 steps, done). Afterwards: an icon menu with a lamp per
+  section, each section with Cancel / Save. Every save writes the whole
+  config; masked secrets go back as they came and the server keeps them.
 -->
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
-  import ChannelLogo from '../components/ChannelLogo.svelte';
-  import { adminApi, type Cfg, NeedsPin, rememberPin, slug, type Status } from './api';
+  import { onDestroy, onMount, type Component } from 'svelte';
+  import { adminApi, type Cfg, NeedsPin, rememberPin, savedPin, type Status } from './api';
+  import Alarm from './sections/Alarm.svelte';
+  import Channels from './sections/Channels.svelte';
+  import Library from './sections/Library.svelte';
+  import Picture from './sections/Picture.svelte';
+  import Place from './sections/Place.svelte';
+  import Remote from './sections/Remote.svelte';
+  import Security from './sections/Security.svelte';
+  import Tv from './sections/Tv.svelte';
+  import Icon from './ui/Icon.svelte';
+  import Progress from './ui/Progress.svelte';
+  import Window from './ui/Window.svelte';
 
-  type Section =
-    | 'place' | 'tv' | 'channels' | 'remote' | 'picture' | 'alarm' | 'library' | 'security';
+  type Section = 'place' | 'tv' | 'channels' | 'remote' | 'picture' | 'alarm' | 'library' | 'security';
+  type Lamp = 'on' | 'todo' | 'off';
 
-  const SECTIONS: { id: Section; label: string }[] = [
-    { id: 'channels', label: 'Chaînes' },
-    { id: 'remote', label: 'Télécommande' },
-    { id: 'tv', label: 'Télé (prise)' },
-    { id: 'place', label: 'Météo' },
-    { id: 'picture', label: 'Image et son' },
-    { id: 'alarm', label: 'Réveil' },
-    { id: 'library', label: 'Films et séries' },
-    { id: 'security', label: 'Code PIN' },
+  const MASK = '********';
+  const VIEWS: Record<Section, { label: string; icon: string; view: Component<{ cfg: Cfg }> }> = {
+    channels: { label: 'Chaînes', icon: 'channels', view: Channels },
+    remote: { label: 'Télécommande', icon: 'remote', view: Remote },
+    tv: { label: 'Allumage', icon: 'tv', view: Tv },
+    place: { label: 'Météo', icon: 'weather', view: Place },
+    alarm: { label: 'Réveil', icon: 'alarm', view: Alarm },
+    picture: { label: 'Image et son', icon: 'picture', view: Picture },
+    library: { label: 'Films et séries', icon: 'library', view: Library },
+    security: { label: 'Code secret', icon: 'lock', view: Security },
+  };
+  const MENU = Object.keys(VIEWS) as Section[];
+  const WIZARD: { id: Section; title: string; intro: string }[] = [
+    { id: 'place', title: 'Où êtes-vous ?', intro: 'Pour la météo affichée sur la télé.' },
+    { id: 'tv', title: 'La télé', intro: 'REWIND peut allumer et éteindre la télé.' },
+    { id: 'channels', title: 'Les chaînes', intro: 'Neuf chaînes au plus, une par touche de 1 à 9.' },
+    { id: 'remote', title: 'La télécommande', intro: 'Apprenez les touches de votre télécommande.' },
+    { id: 'security', title: 'Code secret', intro: 'Protégez ces réglages.' },
   ];
-  const WIZARD: { id: Section; label: string }[] = [
-    { id: 'place', label: 'Où êtes-vous ?' },
-    { id: 'tv', label: 'La télé' },
-    { id: 'channels', label: 'Les chaînes' },
-    { id: 'remote', label: 'La télécommande' },
-    { id: 'security', label: 'Code PIN' },
-  ];
-  const ACTIONS: Record<string, string> = {
-    channel_1: 'Chaîne 1', channel_2: 'Chaîne 2', channel_3: 'Chaîne 3', channel_4: 'Chaîne 4',
-    channel_5: 'Chaîne 5', channel_6: 'Chaîne 6', channel_7: 'Chaîne 7', channel_8: 'Chaîne 8',
-    channel_9: 'Chaîne 9', alarm_toggle: 'Réveil on/off', alarm_later: 'Réveil +10 min',
-    alarm_earlier: 'Réveil −10 min', tv_power: 'Télé on/off (Mute)', play_pause: 'Lecture / pause',
-    next: 'Suivant', previous: 'Précédent', seek_forward: 'Avancer 15 s', seek_backward: 'Reculer 15 s',
-    volume_up: 'Volume +', volume_down: 'Volume −', darker: 'Plus sombre', brighter: 'Plus clair',
-  }; // prettier-ignore
 
   let status = $state<Status | null>(null);
   let cfg = $state<Cfg | null>(null);
   let section = $state<Section | null>(null);
   let wizard = $state(false);
-  let step = $state(0);
+  let step = $state(-1); // -1 = welcome, WIZARD.length = done
   let needPin = $state(false);
   let pinInput = $state('');
-  let message = $state<{ ok: boolean; text: string } | null>(null);
-  let busy = $state(false);
-  let learning = $state<string | null>(null);
-  let learnTimer: ReturnType<typeof setInterval> | undefined;
+  let pinError = $state(false);
+  let loadError = $state('');
+  let snapshot = '';
 
-  const wizardSection = $derived(WIZARD[step]?.id ?? null);
-  const current = $derived(wizard ? wizardSection : section);
+  // Save dialog: a "Saving…" progress bar, then OK or the error.
+  let saving = $state<{ progress: number; done: boolean; error: string | null } | null>(null);
+  let saveTimer: ReturnType<typeof setInterval> | undefined;
+
+  const current = $derived<Section | null>(
+    wizard ? (step >= 0 && step < WIZARD.length ? WIZARD[step].id : null) : section,
+  );
 
   async function load() {
     try {
@@ -59,428 +67,424 @@
       needPin = false;
       if (status.first_run) wizard = true;
     } catch (err) {
-      if (err instanceof NeedsPin) needPin = true;
-      else message = { ok: false, text: (err as Error).message };
+      if (err instanceof NeedsPin) {
+        needPin = true;
+        pinError = savedPin() !== '';
+      } else loadError = (err as Error).message;
     }
   }
 
-  function unlock() {
+  function unlock(event: Event) {
+    event.preventDefault();
     rememberPin(pinInput);
     pinInput = '';
     void load();
   }
 
-  async function save(next = true): Promise<boolean> {
+  function lampOf(id: Section): Lamp {
+    if (!cfg || !status) return 'off';
+    switch (id) {
+      case 'channels':
+        return cfg.channels.length ? 'on' : 'todo';
+      case 'remote':
+        return 'on';
+      case 'tv':
+        return cfg.power.provider === 'none' ? 'off' : cfg.power.shelly_host ? 'on' : 'todo';
+      case 'place':
+        return status.weather ? 'on' : 'todo';
+      case 'alarm':
+        return cfg.channels.some((c: Cfg) => c.alarm) ? 'on' : 'todo';
+      case 'picture':
+        return 'on';
+      case 'library':
+        return !cfg.library.enabled ? 'off' : cfg.tmdb.api_key ? 'on' : 'todo';
+      case 'security':
+        return status.has_pin ? 'on' : 'todo';
+    }
+  }
+
+  function open(id: Section) {
+    snapshot = JSON.stringify(cfg);
+    section = id;
+    window.scrollTo(0, 0);
+  }
+
+  function cancel() {
+    if (snapshot) cfg = JSON.parse(snapshot);
+    section = null;
+    window.scrollTo(0, 0);
+  }
+
+  async function save(): Promise<boolean> {
     if (!cfg) return false;
-    applyPin(); // a PIN typed in the security section (or the wizard) is saved with the rest
-    busy = true;
-    message = null;
+    const pin = cfg.admin.pin !== MASK ? (cfg.admin.pin as string) : null;
+    saving = { progress: 0, done: false, error: null };
+    clearInterval(saveTimer);
+    saveTimer = setInterval(() => saving && !saving.done && (saving.progress = Math.min(0.9, saving.progress + 0.08)), 60);
+    const started = Date.now();
     try {
       cfg = await adminApi.save(cfg);
+      if (pin !== null) rememberPin(pin); // this phone keeps working after a PIN change
       status = await adminApi.status();
-      message = { ok: true, text: 'Enregistré.' };
-      if (wizard && next) step = Math.min(step + 1, WIZARD.length - 1);
+      snapshot = JSON.stringify(cfg);
+      // Let the bar run a little: the retro "Saving…" is part of the fun.
+      await new Promise((r) => setTimeout(r, Math.max(0, 700 - (Date.now() - started))));
+      saving = { progress: 1, done: true, error: null };
+      setTimeout(() => saving?.done && !saving.error && (saving = null), 900);
       return true;
     } catch (err) {
-      if (err instanceof NeedsPin) needPin = true;
-      else message = { ok: false, text: (err as Error).message };
+      if (err instanceof NeedsPin) {
+        saving = null;
+        needPin = true;
+        return false;
+      }
+      saving = { progress: 1, done: true, error: (err as Error).message };
       return false;
     } finally {
-      busy = false;
+      clearInterval(saveTimer);
     }
   }
 
-  async function finishWizard() {
-    await adminApi.completeSetup().catch(() => {});
-    status = await adminApi.status().catch(() => status);
+  async function saveAndBack() {
+    if (await save()) {
+      section = null;
+      window.scrollTo(0, 0);
+    }
+  }
+
+  async function next() {
+    if (!(await save())) return;
+    step += 1;
+    window.scrollTo(0, 0);
+    if (step === WIZARD.length) {
+      await adminApi.completeSetup().catch(() => {});
+      status = await adminApi.status().catch(() => status);
+    }
+  }
+
+  function back() {
+    step = Math.max(-1, step - 1);
+    window.scrollTo(0, 0);
+  }
+
+  function leaveWizard() {
     wizard = false;
     section = null;
-  }
-
-  // --- channels -----------------------------------------------------------------------
-
-  function addChannel() {
-    if (!cfg || cfg.channels.length >= 9) return;
-    const n = cfg.channels.length + 1;
-    cfg.channels.push({
-      id: `chaine-${n}`, name: `Chaîne ${n}`, logo_style: 1, kind: 'youtube',
-      playlist_id: '', save_progress: true, alarm: false,
-    }); // prettier-ignore
-  }
-
-  function removeChannel(i: number) {
-    cfg!.channels.splice(i, 1);
-  }
-
-  function moveChannel(i: number, delta: number) {
-    const list = cfg!.channels;
-    const j = i + delta;
-    if (j < 0 || j >= list.length) return;
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-
-  function renameChannel(ch: Cfg) {
-    // Only default ids follow the name; a channel keeps its id once it is customised.
-    if (!ch.id.startsWith('chaine-')) return;
-    const base = slug(ch.name);
-    const taken = cfg!.channels.filter((c: Cfg) => c !== ch).map((c: Cfg) => c.id);
-    let id = base;
-    for (let n = 2; taken.includes(id); n++) id = `${base}-${n}`;
-    ch.id = id;
-  }
-
-  function setAlarm(i: number) {
-    cfg!.channels.forEach((c: Cfg, j: number) => (c.alarm = j === i && !c.alarm));
-  }
-
-  // --- remote learning ------------------------------------------------------------------
-
-  async function learn(action: string) {
-    if (learning) return;
-    learning = action;
-    message = null;
-    try {
-      await adminApi.startLearn(action);
-    } catch (err) {
-      learning = null;
-      message = { ok: false, text: (err as Error).message };
-      return;
-    }
-    learnTimer = setInterval(async () => {
-      const state = await adminApi.learnState().catch(() => null);
-      if (!state) return;
-      if (state.key && learning) {
-        const keys: string[] = cfg!.remote.keys[action] ?? [];
-        cfg!.remote.keys[action] = [state.key, ...keys.filter((k) => k !== state.key)];
-        stopLearning();
-        message = { ok: true, text: `« ${state.key} » attribué. Pensez à enregistrer.` };
-      } else if (!state.waiting && !state.key) {
-        stopLearning();
-        message = { ok: false, text: 'Aucune touche reçue. Réessayez.' };
-      }
-    }, 1000);
-  }
-
-  function stopLearning() {
-    clearInterval(learnTimer);
-    learning = null;
-    void adminApi.cancelLearn().catch(() => {});
-  }
-
-  function removeKey(action: string, key: string) {
-    cfg!.remote.keys[action] = cfg!.remote.keys[action].filter((k: string) => k !== key);
-  }
-
-  // --- helpers ------------------------------------------------------------------------
-
-
-  function addIndexer() {
-    cfg!.indexers.push({ name: 'Jackett', url: 'http://127.0.0.1:9117', api_key: '', indexer: 'all', min_seeders: 1, max_size_gb: 6, timeout_s: 30, systemd_unit: null });
-  }
-  function addAdvisor() {
-    cfg!.advisor.push({ name: 'Gemini', kind: 'gemini', base_url: null, api_key: '', model: 'gemini-2.5-flash', json_mode: true });
-  }
-
-  let pinNew = $state('');
-  let pinRemove = $state(false);
-  function applyPin() {
-    if (!cfg) return;
-    if (pinRemove) cfg.admin.pin = '';
-    else if (pinNew.trim()) cfg.admin.pin = pinNew.trim();
-    // This browser keeps working after the change, without asking again.
-    if (pinRemove || pinNew.trim()) rememberPin(pinRemove ? '' : pinNew.trim());
-    pinNew = '';
-    pinRemove = false;
+    window.scrollTo(0, 0);
   }
 
   onMount(load);
-  onDestroy(() => clearInterval(learnTimer));
+  onDestroy(() => clearInterval(saveTimer));
 </script>
 
-<main>
-  <header>
-    <strong>REWIND</strong>
-    <span class="muted">Réglages{status ? ` · v${status.version}` : ''}</span>
+<div class="screen">
+  <header class="brand">
+    <div class="logo">
+      <svg class="globe" viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#000" stroke-width="3">
+          <circle cx="50" cy="50" r="46" />
+          <ellipse cx="50" cy="50" rx="20" ry="46" />
+          <ellipse cx="50" cy="50" rx="36" ry="46" />
+          <path d="M4 50 H96 M12 27 H88 M12 73 H88" />
+        </g>
+      </svg>
+      <span class="word">RE</span>
+      <span class="word">WIND</span>
+    </div>
+    <div class="side">
+      <span class="title">Réglages</span>
+      {#if status}<span class="ver">v{status.version}</span>{/if}
+    </div>
   </header>
 
   {#if needPin}
-    <section class="card">
-      <h2>Code PIN</h2>
-      <p class="muted">Entrez le code PIN de l'administration.</p>
-      <input type="password" inputmode="numeric" bind:value={pinInput} placeholder="Code PIN" />
-      <button class="primary" onclick={unlock}>Entrer</button>
-    </section>
+    <Window title="Identification">
+      <p>Entrez le code secret des réglages.</p>
+      <form class="row" onsubmit={unlock}>
+        <input class="grow" type="password" inputmode="numeric" autocomplete="current-password" bind:value={pinInput} placeholder="Code" />
+        <button class="primary" type="submit">Entrer</button>
+      </form>
+      {#if pinError}<p class="bad">Code incorrect.</p>{/if}
+    </Window>
+  {:else if loadError}
+    <Window title="Erreur">
+      <p class="bad">REWIND ne répond pas : {loadError}</p>
+      <div class="row"><button onclick={() => location.reload()}>Réessayer</button></div>
+    </Window>
   {:else if !cfg}
-    <p class="muted">{message?.text ?? 'Chargement…'}</p>
+    <Window title="Connexion…">
+      <p>Connexion à la télé…</p>
+      <div class="pulse"><Progress value={0.35} /></div>
+    </Window>
   {:else if wizard}
-    <section class="card">
-      <p class="muted">Première installation · étape {step + 1} / {WIZARD.length}</p>
-      <h2>{WIZARD[step].label}</h2>
-      {@render editor(wizardSection!)}
-      <div class="row">
-        {#if step > 0}<button onclick={() => (step -= 1)}>Retour</button>{/if}
-        {#if step < WIZARD.length - 1}
-          <button class="primary" disabled={busy} onclick={() => save()}>Suivant</button>
-        {:else}
-          <button class="primary" disabled={busy} onclick={async () => (await save(false)) && (await finishWizard())}>Terminer</button>
-        {/if}
+    {#if step === -1}
+      <Window title="Bienvenue">
+        <p class="hello">Bienvenue dans <strong>REWIND</strong>, la télé d'autrefois.</p>
+        <p>
+          Cinq petites étapes pour la préparer : la ville, la télé, les chaînes, la télécommande et un code secret.
+          Environ cinq minutes. Tout pourra être changé plus tard.
+        </p>
+        <ol class="plan">
+          {#each WIZARD as w (w.id)}
+            <li><Icon name={VIEWS[w.id].icon} size={28} /> {w.title}</li>
+          {/each}
+        </ol>
+        <div class="row end"><button class="primary" onclick={() => (step = 0)}>Commencer ▶</button></div>
+      </Window>
+    {:else if step < WIZARD.length}
+      <Window title="Installation">
+        <p class="step-name"><span>Étape {step + 1} / {WIZARD.length}</span> {WIZARD[step].title}</p>
+        <Progress value={(step + 1) / WIZARD.length} segments={WIZARD.length * 4} />
+        <p class="muted">{WIZARD[step].intro}</p>
+      </Window>
+      {@const View = VIEWS[WIZARD[step].id].view}
+      <View bind:cfg={cfg!} />
+      <div class="bottom">
+        <button onclick={back}>◀ Retour</button>
+        <span class="grow"></span>
+        <button class="primary" onclick={next}>{step === WIZARD.length - 1 ? 'Terminer' : 'Suivant ▶'}</button>
       </div>
-      {#if message}<p class:ok={message.ok} class:bad={!message.ok}>{message.text}</p>{/if}
-    </section>
-  {:else if section}
-    <section class="card">
-      <button onclick={() => { section = null; message = null; }}>← Réglages</button>
-      <h2>{SECTIONS.find((s) => s.id === section)?.label}</h2>
-      {@render editor(section)}
-      <div class="row">
-        <button class="primary" disabled={busy} onclick={() => save(false)}>Enregistrer</button>
-      </div>
-      {#if message}<p class:ok={message.ok} class:bad={!message.ok}>{message.text}</p>{/if}
-    </section>
+    {:else}
+      <Window title="Terminé">
+        <p class="hello"><Icon name="tv" size={34} /> C'est prêt !</p>
+        <p>
+          Allumez la télé : REWIND démarre sur la première chaîne. Revenez ici quand vous voulez pour ajouter les films
+          et séries, régler le réveil ou l'image.
+        </p>
+        <div class="row end"><button class="primary" onclick={leaveWizard}>Aller aux réglages</button></div>
+      </Window>
+    {/if}
+  {:else if current}
+    {@const View = VIEWS[current].view}
+    <h1 class="s-title"><Icon name={VIEWS[current].icon} size={34} /> {VIEWS[current].label}</h1>
+    <View bind:cfg={cfg!} />
+    <div class="bottom">
+      <button onclick={cancel}>Annuler</button>
+      <span class="grow"></span>
+      <button class="primary" onclick={saveAndBack}>Enregistrer</button>
+    </div>
   {:else}
-    <nav>
-      {#each SECTIONS as s (s.id)}
-        <button class="menu" onclick={() => (section = s.id)}>{s.label}<span>›</span></button>
+    {#if status && !status.has_pin}
+      <div class="alert">
+        <strong>⚠ Attention</strong>
+        Aucun code secret : toute personne connectée à votre Wi-Fi peut changer ces réglages.
+        <button class="link" onclick={() => open('security')}>Choisir un code</button>
+      </div>
+    {/if}
+    <nav class="menu">
+      {#each MENU as id (id)}
+        {@const lamp = lampOf(id)}
+        <button onclick={() => open(id)}>
+          <Icon name={VIEWS[id].icon} />
+          <span class="m-label">{VIEWS[id].label}</span>
+          <span class="lamp" class:on={lamp === 'on'} class:todo={lamp === 'todo'} title={lamp === 'todo' ? 'À régler' : ''}></span>
+        </button>
       {/each}
     </nav>
-    {#if status && status.has_pin === false}
-      <p class="warn">Conseil : définissez un code PIN pour protéger ces réglages.</p>
-    {/if}
+    <p class="legend">
+      <span><span class="lamp on"></span> prêt</span>
+      <span><span class="lamp todo"></span> à régler</span>
+      <span><span class="lamp"></span> non utilisé</span>
+    </p>
   {/if}
-</main>
+</div>
 
-{#snippet editor(id: Section)}
-  {#if id === 'place'}
-    <label><span>Nom du lieu</span><input bind:value={cfg!.weather.location_name} placeholder="Tours" /></label>
-    <label><span>Latitude</span><input type="number" step="0.0001" bind:value={cfg!.weather.latitude} /></label>
-    <label><span>Longitude</span><input type="number" step="0.0001" bind:value={cfg!.weather.longitude} /></label>
-    <p class="muted">Sans coordonnées, la météo n'apparaît pas à l'écran.</p>
-  {:else if id === 'tv'}
-    <label><span>Prise connectée</span>
-      <select bind:value={cfg!.power.provider}>
-        <option value="none">Aucune (la télé ne s'éteint pas)</option>
-        <option value="shelly">Shelly (Wi-Fi)</option>
-      </select>
-    </label>
-    {#if cfg!.power.provider === 'shelly'}
-      <label><span>Adresse de la prise (IP ou nom)</span><input bind:value={cfg!.power.shelly_host} placeholder="192.168.1.19" /></label>
-    {/if}
-  {:else if id === 'channels'}
-    <p class="muted">{cfg!.channels.length} / 9 chaînes. Le numéro est la position dans la liste.</p>
-    {#each cfg!.channels as ch, i (i)}
-      <div class="item">
-        <div class="row">
-          <strong>{i + 1}</strong>
-          <input bind:value={ch.name} onchange={() => renameChannel(ch)} placeholder="Nom" />
-        </div>
-        <div class="retro-pick">
-          {#each [1, 2] as v (v)}
-            <button
-              class:selected={(ch.logo_style ?? 1) === v}
-              aria-label="Style {v}"
-              onclick={() => (ch.logo_style = v)}
-            >
-              <ChannelLogo number={i + 1} name={ch.name || ' '} variant={v} />
-            </button>
-          {/each}
-        </div>
-        <div class="row">
-          <button onclick={() => moveChannel(i, -1)} disabled={i === 0}>▲</button>
-          <button onclick={() => moveChannel(i, 1)} disabled={i === cfg!.channels.length - 1}>▼</button>
-          <button class:primary={ch.alarm} onclick={() => setAlarm(i)}>{ch.alarm ? 'Chaîne du réveil' : 'Faire du réveil'}</button>
-          <button class="danger" onclick={() => removeChannel(i)}>Supprimer</button>
-        </div>
-        <label><span>Type</span>
-          <select bind:value={ch.kind}>
-            <option value="youtube">Playlist YouTube</option>
-            <option value="library">Films et séries</option>
-          </select>
-        </label>
-        {#if ch.kind === 'youtube'}
-          <label><span>Identifiant de la playlist</span><input bind:value={ch.playlist_id} placeholder="PL…" /></label>
-          <label class="check"><input type="checkbox" bind:checked={ch.save_progress} /> <span>Reprendre là où on s'est arrêté</span></label>
-        {/if}
-      </div>
-    {/each}
-    {#if cfg!.channels.length < 9}<button onclick={addChannel}>+ Ajouter une chaîne</button>{/if}
-  {:else if id === 'remote'}
-    <p class="muted">Appuyez sur « Apprendre », puis sur la touche de votre télécommande dans les 30 secondes.</p>
-    {#each Object.keys(ACTIONS) as action (action)}
-      <div class="item">
-        <div class="row between">
-          <span>{ACTIONS[action]}</span>
-          <button onclick={() => learn(action)} disabled={learning !== null && learning !== action}>
-            {learning === action ? 'Appuyez sur une touche…' : 'Apprendre'}
-          </button>
-        </div>
-        <div class="keys">
-          {#each cfg!.remote.keys[action] ?? [] as key (key)}
-            <span class="key"><code>{key === ' ' ? 'Espace' : key}</code><button class="danger" onclick={() => removeKey(action, key)}>×</button></span>
-          {:else}
-            <span class="muted">Aucune touche</span>
-          {/each}
-        </div>
-      </div>
-    {/each}
-  {:else if id === 'picture'}
-    <label><span>Sortie vidéo</span><input bind:value={cfg!.display.output} placeholder="HDMI-A-2" /></label>
-    <label><span>Mode</span><input bind:value={cfg!.display.mode} placeholder="720x576" /></label>
-    <label class="check"><input type="checkbox" bind:checked={cfg!.display.crt_effects} /> <span>Effets écran cathodique</span></label>
-    <label><span>Décalage audio (ms, + = son plus tard)</span><input type="number" min="-2000" max="2000" bind:value={cfg!.audio.av_offset_ms} /></label>
-    <label><span>Sortie audio (PipeWire/PulseAudio)</span><input bind:value={cfg!.audio.output_port} placeholder="analog-output-headphones" /></label>
-  {:else if id === 'alarm'}
-    <label><span>Pas de réglage (minutes)</span><input type="number" min="1" max="60" bind:value={cfg!.alarm.step_minutes} /></label>
-    <label><span>Son : montée (secondes)</span><input type="number" min="0" bind:value={cfg!.alarm.sound_ramp_s} /></label>
-    <label><span>Image : délai avant l'arrivée (secondes)</span><input type="number" min="0" bind:value={cfg!.alarm.video_delay_s} /></label>
-    <label><span>Image : montée (secondes)</span><input type="number" min="0" bind:value={cfg!.alarm.video_ramp_s} /></label>
-    <label><span>Durée maximum (secondes)</span><input type="number" min="10" bind:value={cfg!.alarm.max_duration_s} /></label>
-  {:else if id === 'library'}
-    <label class="check"><input type="checkbox" bind:checked={cfg!.library.enabled} /> <span>Activer les films et séries</span></label>
-    <label><span>Téléchargements en parallèle</span><input type="number" min="1" max="10" bind:value={cfg!.library.download_slots} /></label>
-    <label><span>Clé TMDB</span><input bind:value={cfg!.tmdb.api_key} placeholder="Clé API TMDB" /></label>
-    <h3>OpenSubtitles</h3>
-    <label><span>Clé API</span><input bind:value={cfg!.opensubtitles.api_key} /></label>
-    <label><span>Identifiant</span><input bind:value={cfg!.opensubtitles.username} /></label>
-    <label><span>Mot de passe</span><input type="password" bind:value={cfg!.opensubtitles.password} /></label>
-    <h3>Indexeurs (Jackett)</h3>
-    {#each cfg!.indexers as ix, i (i)}
-      <div class="item">
-        <label><span>Nom</span><input bind:value={ix.name} /></label>
-        <label><span>Adresse</span><input bind:value={ix.url} /></label>
-        <label><span>Clé API</span><input bind:value={ix.api_key} /></label>
-        <label><span>Unité systemd à relancer (facultatif)</span><input bind:value={ix.systemd_unit} placeholder="jackett.service" /></label>
-        <button class="danger" onclick={() => cfg!.indexers.splice(i, 1)}>Supprimer</button>
-      </div>
-    {/each}
-    <button onclick={addIndexer}>+ Ajouter un indexeur</button>
-    <h3>Movie Advisor (IA)</h3>
-    {#each cfg!.advisor as p, i (i)}
-      <div class="item">
-        <label><span>Nom</span><input bind:value={p.name} /></label>
-        <label><span>Type</span>
-          <select bind:value={p.kind}>
-            <option value="gemini">Gemini</option>
-            <option value="openai">Compatible OpenAI (OpenRouter, Groq…)</option>
-          </select>
-        </label>
-        {#if p.kind === 'openai'}<label><span>Adresse de l'API</span><input bind:value={p.base_url} /></label>{/if}
-        <label><span>Clé API</span><input bind:value={p.api_key} /></label>
-        <label><span>Modèle</span><input bind:value={p.model} /></label>
-        <button class="danger" onclick={() => cfg!.advisor.splice(i, 1)}>Supprimer</button>
-      </div>
-    {/each}
-    <button onclick={addAdvisor}>+ Ajouter un fournisseur</button>
-  {:else if id === 'security'}
-    <p class="muted">{status?.has_pin ? 'Un code PIN est défini.' : 'Aucun code PIN : n\'importe qui sur le réseau peut changer les réglages.'}</p>
-    <label><span>Nouveau code PIN</span><input type="password" inputmode="numeric" bind:value={pinNew} /></label>
-    <label class="check"><input type="checkbox" bind:checked={pinRemove} /> <span>Supprimer le code PIN</span></label>
-    <p class="muted">Le code est enregistré avec les autres réglages.</p>
-  {/if}
-{/snippet}
+{#if saving}
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Enregistrement">
+    <Window title={saving.error ? 'Erreur' : saving.done ? 'Enregistré' : 'Enregistrement…'}>
+      {#if saving.error}
+        <p class="bad">{saving.error}</p>
+        <div class="row end"><button class="primary" onclick={() => (saving = null)}>OK</button></div>
+      {:else}
+        <p>{saving.done ? 'Réglages enregistrés ✓' : 'Envoi des réglages à la télé…'}</p>
+        <Progress value={saving.progress} />
+      {/if}
+    </Window>
+  </div>
+{/if}
 
 <style>
-  main {
-    max-width: 640px;
+  .screen {
+    max-width: 560px;
     margin: 0 auto;
-    padding: 12px 14px 40px;
+    padding: 12px 12px 96px;
   }
-  header {
+  /* Brand bar: pale panel with the outlined logo and a wireframe globe, blue side. */
+  .brand {
     display: flex;
-    align-items: baseline;
-    gap: 10px;
-    padding: 8px 0 14px;
+    margin-bottom: 14px;
+    border: 2px solid var(--ink);
+    box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.45);
   }
-  .muted {
-    color: var(--muted);
-    font-size: 14px;
+  .logo {
+    position: relative;
+    flex: 0 0 58%;
+    padding: 8px 12px;
+    background: var(--panel);
+    border-right: 2px solid var(--ink);
+    overflow: hidden;
   }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 16px;
+  .globe {
+    position: absolute;
+    right: -26px;
+    bottom: -34px;
+    width: 120px;
+    height: 120px;
+    opacity: 0.85;
   }
-  h2 {
-    margin: 10px 0 6px;
-    font-size: 22px;
+  .word {
+    position: relative;
+    display: block;
+    font: 34px/1 var(--cond);
+    letter-spacing: 0.32em;
+    color: var(--yellow);
+    -webkit-text-stroke: 1.5px #000;
+    paint-order: stroke fill;
+    text-shadow: 3px 3px 0 #000;
   }
-  h3 {
-    margin: 20px 0 4px;
-    font-size: 17px;
-  }
-  nav {
+  .side {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    justify-content: center;
+    padding: 8px 12px;
+    background: var(--desk);
+    color: #fff;
+  }
+  .title {
+    font: 24px var(--cond);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .ver {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+  .s-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+    font: 26px var(--cond);
+    color: #fff;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 0 #000;
   }
   .menu {
-    display: flex;
-    justify-content: space-between;
-    font-size: 17px;
-    text-align: left;
-  }
-  .row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-    margin: 10px 0;
-  }
-  .between {
-    justify-content: space-between;
-  }
-  .item {
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px;
-    margin: 12px 0;
-  }
-  .keys {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 6px;
-  }
-  .key {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding-left: 8px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-  }
-  .key button {
-    min-height: 32px;
-    padding: 2px 8px;
-    border: 0;
-  }
-  code {
-    font-size: 15px;
-  }
-  .retro-pick {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin: 8px 0;
   }
-  .retro-pick button {
+  .menu button {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-height: 104px;
+    padding: 12px 6px 10px;
+    font-size: 17px;
+    box-shadow:
+      inset 2px 2px 0 var(--hi),
+      inset -2px -2px 0 var(--lo),
+      4px 4px 0 rgba(0, 0, 0, 0.45);
+  }
+  .menu .lamp {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+  .m-label {
+    text-transform: uppercase;
+  }
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 14px;
+    font-size: 12px;
+    color: #fff;
+  }
+  .alert {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    background: var(--yellow);
+    border: 2px solid var(--ink);
+    box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.45);
+    font-size: 14px;
+  }
+  .alert strong {
+    display: block;
+    font: 18px var(--cond);
+    text-transform: uppercase;
+  }
+  .hello {
+    font: 22px var(--cond);
+  }
+  .plan {
+    list-style: none;
     padding: 0;
-    aspect-ratio: 1;
-    border: 3px solid transparent;
-    background: #000;
-    overflow: hidden;
   }
-  .retro-pick .selected {
-    border-color: var(--accent);
+  .plan li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0;
+    font-weight: bold;
   }
-  .ok {
-    color: var(--ok);
+  .step-name {
+    font: 20px var(--cond);
+    text-transform: uppercase;
   }
-  .bad {
-    color: var(--bad);
-    white-space: pre-line;
+  .step-name span {
+    display: block;
+    font: 13px Verdana, Geneva, sans-serif;
+    text-transform: none;
+    color: var(--muted);
   }
-  .warn {
-    color: var(--warn);
+  .pulse {
+    animation: pulse 1.2s steps(2) infinite;
+  }
+  @keyframes pulse {
+    50% {
+      opacity: 0.4;
+    }
+  }
+  .end {
+    justify-content: flex-end;
+  }
+  /* Cancel / Save bar, always reachable (GIF: Cancel / Sign On). */
+  .bottom {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: flex;
+    gap: 10px;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--win);
+    border-top: 2px solid var(--ink);
+    box-shadow: inset 0 2px 0 var(--hi);
+  }
+  .bottom button {
+    min-width: 120px;
+  }
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: rgba(10, 20, 90, 0.55);
+  }
+  .modal > :global(.window) {
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
   }
 </style>

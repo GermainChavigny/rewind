@@ -54,3 +54,25 @@ def test_config_put_rejects_unknown_fields(make_client):
     assert client.put("/api/admin/config", json=cfg).status_code == 200
     cfg["bogus"] = 1
     assert client.put("/api/admin/config", json=cfg).status_code == 422
+
+
+def test_geocode_shapes_places(make_client, web):
+    import httpx
+
+    web.routes["https://geocoding-api.open-meteo.com/"] = httpx.Response(
+        200,
+        json={"results": [{"name": "Tours", "admin1": "Centre-Val de Loire", "country": "France",
+                           "latitude": 47.39414, "longitude": 0.68484}]},
+    )  # fmt: skip
+    client = make_client(sample_config())
+    assert client.get("/api/admin/geocode", params={"q": "Tours"}).json() == [
+        {
+            "name": "Tours",
+            "detail": "Centre-Val de Loire, France",
+            "latitude": 47.3941,
+            "longitude": 0.6848,
+        }
+    ]
+    assert client.get("/api/admin/geocode", params={"q": "T"}).json() == []
+    web.routes.clear()
+    assert client.get("/api/admin/geocode", params={"q": "Tours"}).status_code == 502

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hmac
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
 
@@ -69,6 +70,35 @@ def setup_complete(ctx: AppContext = Depends(check_pin)) -> dict:
     """The wizard is finished: the admin shows the settings menu from now on."""
     ctx.db.set_kv("setup_done", True)
     return {"first_run": False}
+
+
+GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
+
+
+@router.get("/geocode")
+def geocode(q: str, ctx: AppContext = Depends(check_pin)) -> list[dict]:
+    """Places matching a city name (Open-Meteo, free, no key) for the weather setup."""
+    q = q.strip()
+    if len(q) < 2:
+        return []
+    try:
+        r = ctx.http.get(
+            GEOCODE_URL, params={"name": q[:80], "count": 6, "language": "fr"}, timeout=8
+        )
+        r.raise_for_status()
+        results = r.json().get("results") or []
+    except (httpx.HTTPError, ValueError) as err:
+        raise HTTPException(502, "geocoding unavailable") from err
+    return [
+        {
+            "name": p["name"],
+            "detail": ", ".join(x for x in (p.get("admin1"), p.get("country")) if x),
+            "latitude": round(p["latitude"], 4),
+            "longitude": round(p["longitude"], 4),
+        }
+        for p in results
+        if "latitude" in p and "longitude" in p
+    ]
 
 
 class LearnIn(BaseModel):

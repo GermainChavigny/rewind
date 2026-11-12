@@ -12,6 +12,13 @@ export interface Status {
   version: string;
 }
 
+export interface Place {
+  name: string;
+  detail: string;
+  latitude: number;
+  longitude: number;
+}
+
 export class NeedsPin extends Error {}
 
 const PIN_KEY = 'rewind-admin-pin';
@@ -63,6 +70,7 @@ export const adminApi = {
   startLearn: (action: string) => call<{ action: string | null }>('POST', '/api/admin/learn', { action }),
   learnState: () => call<{ action: string | null; key: string | null; waiting: boolean }>('GET', '/api/admin/learn'),
   cancelLearn: () => call<unknown>('DELETE', '/api/admin/learn'),
+  geocode: (q: string) => call<Place[]>('GET', `/api/admin/geocode?q=${encodeURIComponent(q)}`),
   completeSetup: () => call<unknown>('POST', '/api/admin/setup/complete'),
 };
 
