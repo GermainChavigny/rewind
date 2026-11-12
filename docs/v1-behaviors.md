@@ -76,8 +76,8 @@ turns the TV on through the plug and plays the alarm channel.
       `stopVideo()` + a delay before `loadPlaylist()`; v2 does the same and also
       forces the requested playlist if a foreign video starts.
 - [x] A local intro video loops at boot until a channel or movie takes over.
-- [x] A channel selector overlay with logos (v2: choose a logo or icon, plus an
-      optional text name).
+- [x] A channel selector overlay with logos (v2: retro logos drawn from the
+      channel number and name, two styles; v1 image logos are not used).
 
 ## Movies & series playback
 

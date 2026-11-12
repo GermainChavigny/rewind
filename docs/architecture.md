@@ -77,7 +77,7 @@ searches. Job state lives in the database, so jobs resume after a reboot.
 Downloads are staged in `<data>/downloads` and removed once converted.
 
 Always available: `/api/health`, `/api/state` (darkness, volume — persisted),
-`/api/logos`, `/api/admin/*`.
+`/api/admin/*`.
 
 ## Storage
 
@@ -111,16 +111,15 @@ See [v1-behaviors.md](v1-behaviors.md) for the checklist of v1 details to carry 
 The fonts (VCR OSD Mono, Home Video Bold), the intro video, the sounds and the
 Movie Advisor critic picture (`frontend/public/img/advisor-critic.gif`) come
 from v1; their licenses must be verified before the repository is made public.
-Custom channel images are never shipped: they are the user's own files (`<data>/logos`).
 
 ## Retro channel logos
 
-The default channel logos are drawn by `ChannelLogo.svelte`: a background
+Channel logos are drawn by `ChannelLogo.svelte`: a background
 chosen by channel number and variant (`frontend/public/img/channels/v{1,2}/{n}.webp`,
 cut from the boards in `assets/channel-logos` by `scripts/cut-channel-logos.py`)
 with the channel name written over it in CSS, each style matching the
-reference boards (`assets/channel-logos/ref-*.jpg`). Logo ids: `retro:1`,
-`retro:2` (no logo = `retro:1`) or `custom:<file>`. The boards were generated
+reference boards (`assets/channel-logos/ref-*.jpg`). Each channel picks
+`logo_style` 1 or 2; v1 image logos are not used. The boards were generated
 by the project owner. The logo fonts (Exo 2, Oswald, Libre Bodoni, Cinzel,
 Kaushan Script, Silkscreen, Doto, Audiowide) are SIL OFL fonts from Google
 Fonts, bundled in `frontend/public/fonts`. `frontend/dev/logos.html` (dev

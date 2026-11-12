@@ -152,17 +152,6 @@ def test_admin_config_masks_and_pin(make_client, paths):
     assert bad.status_code == 422
 
 
-def test_logos(make_client, paths):
-    client = make_client()
-    (paths.data / "logos").mkdir()
-    (paths.data / "logos" / "Making of TV.png").write_bytes(b"png")
-    (paths.data / "logos" / "notes.txt").write_text("x")
-    logos = client.get("/api/logos").json()
-    assert logos == [{"id": "custom:Making of TV.png", "url": "/api/logos/Making%20of%20TV.png"}]
-    assert client.get(logos[0]["url"]).content == b"png"
-    assert client.get("/api/logos/notes.txt").status_code == 400
-
-
 def test_ui_settings(make_client):
     ui = make_client(sample_config()).get("/api/ui").json()
     assert ui["language"] == "fr" and ui["keymap"]["tv_power"] == ["AudioVolumeMute"]

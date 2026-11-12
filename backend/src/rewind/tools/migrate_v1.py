@@ -7,7 +7,8 @@ Build v2 state from a v1 snapshot (see import_v1.py).
   the admin are never clobbered by a re-import.
 - SQLite: alarm, YouTube progress, library and advisor blacklist are REPLACED
   by v1's, so v2 can be refreshed from v1 as often as needed during development.
-- posters/ and logos/ are copied to the v2 data dir.
+- posters/ are copied to the v2 data dir (v1 channel logos are not: v2 draws
+  its own retro logos).
 """
 
 from __future__ import annotations
@@ -80,7 +81,7 @@ _CHANNEL_RE = re.compile(r"\{\s*id:\s*'([^']+)',\s*logo:\s*'([^']+)',\s*name:\s*
 def parse_channels(state_manager_js: str) -> list[Channel]:
     channels: list[Channel] = []
     seen: set[str] = set()
-    for playlist_id, logo, name, flags in _CHANNEL_RE.findall(state_manager_js):
+    for playlist_id, _logo, name, flags in _CHANNEL_RE.findall(state_manager_js):
         cid = slugify(name)
         while cid in seen:
             cid += "-2"
@@ -90,7 +91,6 @@ def parse_channels(state_manager_js: str) -> list[Channel]:
             Channel(
                 id=cid,
                 name=name,
-                logo=f"custom:{logo}",
                 kind="library" if is_library else "youtube",
                 playlist_id=None if is_library else playlist_id,
                 save_progress="noSave: true" not in flags,
@@ -320,5 +320,4 @@ def migrate_v1(paths: Paths, overwrite_config: bool = False) -> MigrationReport:
     # An imported v1 setup is already configured: no first-run wizard for it.
     db.set_kv("setup_done", True)
     report.counts["posters"] = _copy_files(snap / "posters", paths.data / "posters")
-    report.counts["logos"] = _copy_files(snap / "app" / "logos", paths.data / "logos")
     return report

@@ -38,7 +38,7 @@ V1_DIRS = ("posters",)
 # v1 app files holding settings that were hardcoded there (channels, smart plug
 # IP, weather location, logos), plus ~/.xinitrc (A/V offset, video output).
 V1_APP_FILES = ("modules/StateManager.js", "api.py", "config.js")
-V1_APP_DIRS = ("logos",)
+V1_APP_DIRS: tuple[str, ...] = ()  # v1 logos are not used by v2
 
 # Only media files are linked (not the stray .exe/.bat/scripts in ~/movies).
 MEDIA_EXTS = {

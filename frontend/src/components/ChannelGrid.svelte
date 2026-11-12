@@ -1,5 +1,5 @@
 <!--
-  Channel selector (v1 #channels): 3×3 logo grid shown for a few seconds at
+  Channel selector (v1 #channels): 3×3 grid of retro logos (ChannelLogo) shown for a few seconds at
   boot and after each zap, and while the video is paused (new in v2); the
   current channel pops out with a white frame.
   New in v2: a status strip under the grid (alarm, weather, clock) — the
@@ -7,7 +7,6 @@
 -->
 <script lang="ts">
   import { t } from '../lib/i18n';
-  import { retroVariant } from '../lib/logos';
   import ChannelLogo from './ChannelLogo.svelte';
   import { movie } from '../lib/movie.svelte';
   import { tv } from '../lib/tv.svelte';
@@ -32,21 +31,12 @@
 >
   <div class="grid">
     {#each tv.channels as ch (ch.id)}
-      {@const variant = retroVariant(ch.logo)}
-      {@const logo = ch.logo ? tv.logos[ch.logo] : null}
       <button
         class="tile"
         class:current={tv.current?.id === ch.id}
         onclick={() => tv.selectChannel(ch.number)}
       >
-        {#if variant}
-          <ChannelLogo number={ch.number} name={ch.name} {variant} />
-        {:else if logo}
-          <img src={logo} alt={ch.name} draggable="false" />
-        {:else}
-          <span class="fallback"><b>{ch.number}</b>{ch.name}</span>
-        {/if}
-        {#if !variant && logo && ch.show_name}<span class="name">{ch.name}</span>{/if}
+        <ChannelLogo number={ch.number} name={ch.name} variant={ch.logo_style} />
       </button>
     {/each}
   </div>
@@ -104,44 +94,6 @@
     border-color: #fff;
     transform: scale(1.1);
     z-index: 1;
-  }
-  .tile img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .fallback {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    height: 100%;
-    padding: 4px;
-    background: linear-gradient(var(--crt-panel-2), var(--crt-bg));
-    color: #fff;
-    font-size: var(--fs-m);
-    text-transform: uppercase;
-    text-align: center;
-    text-shadow: var(--crt-shadow);
-  }
-  .fallback b {
-    font-family: var(--crt-block);
-    font-size: 44px;
-    color: var(--crt-accent);
-  }
-  .name {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 2px 4px;
-    background: rgba(0, 0, 0, 0.75);
-    color: #fff;
-    font-size: var(--fs-s);
-    text-transform: uppercase;
-    text-align: center;
   }
   .status {
     display: flex;

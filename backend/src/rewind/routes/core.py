@@ -1,21 +1,14 @@
-"""Core routes: modules, channels, YouTube progress, display state, alarm, logos."""
+"""Core routes: modules, channels, YouTube progress, display state, alarm."""
 
 from __future__ import annotations
 
-import re
-from pathlib import Path
-from urllib.parse import quote
-
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from rewind.context import AppContext, get_ctx, require
 from rewind.modules import module_states
 
 router = APIRouter(prefix="/api")
-
-LOGO_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 
 
 @router.get("/modules")
@@ -108,34 +101,3 @@ def get_alarm(ctx: AppContext = Depends(require("alarm"))) -> dict:
 def put_alarm(body: Alarm, ctx: AppContext = Depends(require("alarm"))) -> dict:
     ctx.db.set_kv("alarm", body.model_dump())
     return body.model_dump()
-
-
-# --- Logos ----------------------------------------------------------------------------
-# Logo ids: "custom:<file>" for logos in <data>/logos. Built-in logos and icons
-# ship with the frontend (phase 2) and are listed there.
-
-
-def _logos_dir(ctx: AppContext) -> Path:
-    return ctx.paths.data / "logos"
-
-
-@router.get("/logos")
-def logos(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
-    folder = _logos_dir(ctx)
-    if not folder.is_dir():
-        return []
-    return [
-        {"id": f"custom:{p.name}", "url": f"/api/logos/{quote(p.name)}"}
-        for p in sorted(folder.iterdir())
-        if p.suffix.lower() in LOGO_EXTS
-    ]
-
-
-@router.get("/logos/{name}")
-def logo_file(name: str, ctx: AppContext = Depends(get_ctx)) -> FileResponse:
-    if not re.fullmatch(r"[\w .@-]+", name) or Path(name).suffix.lower() not in LOGO_EXTS:
-        raise HTTPException(400, "invalid logo name")
-    path = _logos_dir(ctx) / name
-    if not path.is_file():
-        raise HTTPException(404, "logo not found")
-    return FileResponse(path)

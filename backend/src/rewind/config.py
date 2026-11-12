@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import tomli_w
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 MASK = "********"
 
@@ -110,12 +110,25 @@ class Channel(_Model):
 
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
     name: str
-    show_name: bool = False  # display the name as text next to/instead of the logo
-    logo: str | None = None  # logo id, see /api/logos
+    # Retro logo style (1 or 2): the background follows the channel number,
+    # the name is drawn over it (frontend ChannelLogo.svelte).
+    logo_style: int = Field(default=1, ge=1, le=2)
     kind: Literal["youtube", "library"] = "youtube"
     playlist_id: str | None = None  # YouTube playlist (kind = youtube)
     save_progress: bool = True  # False = always restart (e.g. news)
     alarm: bool = False  # the channel played by the alarm
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_image_logos(cls, data: Any) -> Any:
+        # Configs written before the retro logos had image logos (v1 files).
+        if isinstance(data, dict) and ("logo" in data or "show_name" in data):
+            data = dict(data)
+            logo = data.pop("logo", None)
+            data.pop("show_name", None)
+            if logo == "retro:2":
+                data.setdefault("logo_style", 2)
+        return data
 
 
 class LibraryConfig(_Model):

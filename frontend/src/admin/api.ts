@@ -12,11 +12,6 @@ export interface Status {
   version: string;
 }
 
-export interface Logo {
-  id: string;
-  url: string;
-}
-
 export class NeedsPin extends Error {}
 
 const PIN_KEY = 'rewind-admin-pin';
@@ -65,7 +60,6 @@ export const adminApi = {
   status: () => call<Status>('GET', '/api/admin/status'),
   config: () => call<Cfg>('GET', '/api/admin/config'),
   save: (cfg: Cfg) => call<Cfg>('PUT', '/api/admin/config', cfg),
-  logos: () => call<Logo[]>('GET', '/api/logos'),
   startLearn: (action: string) => call<{ action: string | null }>('POST', '/api/admin/learn', { action }),
   learnState: () => call<{ action: string | null; key: string | null; waiting: boolean }>('GET', '/api/admin/learn'),
   cancelLearn: () => call<unknown>('DELETE', '/api/admin/learn'),

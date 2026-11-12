@@ -7,8 +7,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import ChannelLogo from '../components/ChannelLogo.svelte';
-  import { retroVariant } from '../lib/logos';
-  import { adminApi, type Cfg, NeedsPin, type Logo, rememberPin, slug, type Status } from './api';
+  import { adminApi, type Cfg, NeedsPin, rememberPin, slug, type Status } from './api';
 
   type Section =
     | 'place' | 'tv' | 'channels' | 'remote' | 'picture' | 'alarm' | 'library' | 'security';
@@ -41,7 +40,6 @@
 
   let status = $state<Status | null>(null);
   let cfg = $state<Cfg | null>(null);
-  let logos = $state<Logo[]>([]);
   let section = $state<Section | null>(null);
   let wizard = $state(false);
   let step = $state(0);
@@ -51,7 +49,6 @@
   let busy = $state(false);
   let learning = $state<string | null>(null);
   let learnTimer: ReturnType<typeof setInterval> | undefined;
-  let logoFor = $state<number | null>(null);
 
   const wizardSection = $derived(WIZARD[step]?.id ?? null);
   const current = $derived(wizard ? wizardSection : section);
@@ -59,7 +56,6 @@
   async function load() {
     try {
       [status, cfg] = await Promise.all([adminApi.status(), adminApi.config()]);
-      logos = await adminApi.logos().catch(() => []);
       needPin = false;
       if (status.first_run) wizard = true;
     } catch (err) {
@@ -107,14 +103,13 @@
     if (!cfg || cfg.channels.length >= 9) return;
     const n = cfg.channels.length + 1;
     cfg.channels.push({
-      id: `chaine-${n}`, name: `Chaîne ${n}`, show_name: false, logo: 'retro:1', kind: 'youtube',
+      id: `chaine-${n}`, name: `Chaîne ${n}`, logo_style: 1, kind: 'youtube',
       playlist_id: '', save_progress: true, alarm: false,
     }); // prettier-ignore
   }
 
   function removeChannel(i: number) {
     cfg!.channels.splice(i, 1);
-    logoFor = null;
   }
 
   function moveChannel(i: number, delta: number) {
@@ -178,8 +173,6 @@
 
   // --- helpers ------------------------------------------------------------------------
 
-  const logoName = (id: string | null) => (id ? (logos.find((l) => l.id === id)?.id ?? id).replace('custom:', '') : 'Aucun');
-  const logoUrl = (id: string | null) => logos.find((l) => l.id === id)?.url ?? null;
 
   function addIndexer() {
     cfg!.indexers.push({ name: 'Jackett', url: 'http://127.0.0.1:9117', api_key: '', indexer: 'all', min_seeders: 1, max_size_gb: 6, timeout_s: 30, systemd_unit: null });
@@ -283,9 +276,9 @@
         <div class="retro-pick">
           {#each [1, 2] as v (v)}
             <button
-              class:selected={retroVariant(ch.logo) === v}
+              class:selected={(ch.logo_style ?? 1) === v}
               aria-label="Style {v}"
-              onclick={() => { ch.logo = `retro:${v}`; logoFor = null; }}
+              onclick={() => (ch.logo_style = v)}
             >
               <ChannelLogo number={i + 1} name={ch.name || ' '} variant={v} />
             </button>
@@ -307,26 +300,6 @@
           <label><span>Identifiant de la playlist</span><input bind:value={ch.playlist_id} placeholder="PL…" /></label>
           <label class="check"><input type="checkbox" bind:checked={ch.save_progress} /> <span>Reprendre là où on s'est arrêté</span></label>
         {/if}
-        {#if retroVariant(ch.logo) === null}
-          <label class="check"><input type="checkbox" bind:checked={ch.show_name} /> <span>Afficher le nom sous l'image</span></label>
-        {/if}
-        <div class="logo-pick">
-          <button onclick={() => (logoFor = logoFor === i ? null : i)}>
-            {#if logoUrl(ch.logo)}<img src={logoUrl(ch.logo)} alt="" />{/if}
-            {retroVariant(ch.logo) === null ? `Image : ${logoName(ch.logo)}` : 'Utiliser une autre image…'}
-          </button>
-          {#if logoFor === i}
-            <div class="logos">
-              {#each logos as l (l.id)}
-                <button class:selected={ch.logo === l.id} onclick={() => { ch.logo = l.id; logoFor = null; }}>
-                  <img src={l.url} alt={l.id} />
-                </button>
-              {:else}
-                <p class="muted">Aucun logo. Déposez vos images dans le dossier « logos » des données REWIND.</p>
-              {/each}
-            </div>
-          {/if}
-        </div>
       </div>
     {/each}
     {#if cfg!.channels.length < 9}<button onclick={addChannel}>+ Ajouter une chaîne</button>{/if}
@@ -499,25 +472,6 @@
   }
   .retro-pick .selected {
     border-color: var(--accent);
-  }
-  .logo-pick button img,
-  .logos img {
-    height: 26px;
-    width: auto;
-    vertical-align: middle;
-  }
-  .logos {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .logos button {
-    min-height: 56px;
-  }
-  .logos .selected {
-    border-color: var(--accent);
-    border-width: 2px;
   }
   .ok {
     color: var(--ok);

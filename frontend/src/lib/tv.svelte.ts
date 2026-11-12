@@ -42,7 +42,6 @@ class Tv {
   ui: UiSettings | null = null;
   modules = $state<Record<string, boolean>>({});
   channels = $state<Channel[]>([]);
-  logos = $state<Record<string, string>>({});
 
   current = $state<Channel | null>(null);
   intro = $state(true);
@@ -101,11 +100,10 @@ class Tv {
   }
 
   private async load(): Promise<void> {
-    const [ui, modules, channels, logos, state] = await Promise.all([
+    const [ui, modules, channels, state] = await Promise.all([
       api.ui(),
       api.modules(),
       api.channels(),
-      api.logos(),
       api.state(),
     ]);
     this.ui = ui;
@@ -113,7 +111,6 @@ class Tv {
     this.keys = buildKeyLookup(ui.keymap);
     this.modules = Object.fromEntries(modules.map((m) => [m.id, m.configured]));
     this.channels = channels;
-    this.logos = Object.fromEntries(logos.map((l) => [l.id, l.url]));
     this.darkness = state.darkness;
     this.volume = state.volume;
     if (this.modules.alarm) this.alarm = await api.alarm();

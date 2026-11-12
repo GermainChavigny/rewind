@@ -6,8 +6,7 @@ export interface Channel {
   number: number;
   id: string;
   name: string;
-  show_name: boolean;
-  logo: string | null;
+  logo_style: number; // retro logo style, 1 or 2
   kind: 'youtube' | 'library';
   playlist_id: string | null;
   save_progress: boolean;
@@ -55,11 +54,6 @@ export interface Weather {
   hour: string;
   day: { code: number; hi: number; lo: number };
   periods: { id: 'morning' | 'afternoon' | 'evening'; code: number; temp: number }[];
-}
-
-export interface Logo {
-  id: string;
-  url: string;
 }
 
 export type MediaKind = 'movie' | 'series' | 'episode' | 'pack';
@@ -230,7 +224,6 @@ export const api = {
   ui: () => call<UiSettings>('GET', '/api/ui'),
   modules: () => call<ModuleState[]>('GET', '/api/modules'),
   channels: () => call<Channel[]>('GET', '/api/channels'),
-  logos: () => call<Logo[]>('GET', '/api/logos'),
   state: () => call<DisplayState>('GET', '/api/state'),
   patchState: (patch: Partial<DisplayState>) => call<DisplayState>('PATCH', '/api/state', patch),
   progress: (playlistId: string) =>

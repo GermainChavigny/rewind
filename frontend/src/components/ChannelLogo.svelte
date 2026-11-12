@@ -125,7 +125,7 @@
     --size: 14cqw;
   }
   .s1-2 {
-    --y: 2%;
+    --y: 4.5%;
     --size: 16cqw;
   }
   .s1-2 .name span {
@@ -134,7 +134,7 @@
     transform: scaleY(1.3);
   }
   .s1-3 {
-    --y: 2%;
+    --y: 4.5%;
     --size: 17cqw;
     --tf: rotate(-7deg);
   }
@@ -149,7 +149,7 @@
       100% 0.11em;
   }
   .s1-4 {
-    --y: 72%;
+    --y: 74.5%;
     --size: 14.5cqw;
   }
   .s1-5 {
@@ -180,7 +180,7 @@
     --drop: drop-shadow(0.5cqw 0.5cqw 0 rgba(20, 0, 40, 0.9));
   }
   .s1-8 {
-    --y: 1%;
+    --y: 3.5%;
     --size: 14cqw;
   }
   .s1-8 .name span {
@@ -213,8 +213,8 @@
     background: linear-gradient(90deg, transparent, #dfe2ff 20%, #ffffff 50%, #dfe2ff 80%, transparent);
   }
   .s2-2 {
-    --y: 4%;
-    --size: 14.5cqw;
+    --y: 6.5%;
+    --size: 15.5cqw;
   }
   .s2-2 .name span {
     color: transparent;
@@ -223,7 +223,7 @@
     background-clip: text;
   }
   .s2-3 {
-    --y: 2%;
+    --y: 4.5%;
     --size: 17cqw;
     --tf: rotate(-6deg);
   }
@@ -231,7 +231,7 @@
     color: #ff3d8d;
   }
   .s2-4 {
-    --y: 3%;
+    --y: 5.5%;
     --size: 16cqw;
   }
   .s2-4 .name span {
@@ -244,7 +244,7 @@
     --size: 14cqw;
   }
   .s2-6 {
-    --y: 3%;
+    --y: 5.5%;
     --size: 15.5cqw;
   }
   .s2-6 .name span {
@@ -273,7 +273,7 @@
     position: relative;
   }
   .s2-8 {
-    --y: 1%;
+    --y: 3.5%;
     --size: 14cqw;
   }
   .s2-8 .name span {

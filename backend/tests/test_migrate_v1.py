@@ -113,7 +113,7 @@ def test_config_from_v1(v1, paths):
         ("wake-up", "youtube", True, True),
         ("movies", "library", True, False),
     ]
-    assert cfg.channels[0].logo == "custom:newsTV.png" and cfg.channels[0].playlist_id == "PLnews"
+    assert cfg.channels[0].logo_style == 1 and cfg.channels[0].playlist_id == "PLnews"
     assert cfg.power.provider == "shelly" and cfg.power.shelly_host == "192.168.1.19"
     assert (cfg.weather.latitude, cfg.weather.longitude) == (47.39, 0.69)
     assert cfg.weather.location_name == "Tours"
@@ -144,7 +144,7 @@ def test_db_from_v1(v1, paths):
     assert db.get_kv("alarm") == {"time": "08:50", "enabled": True}
     assert [b["title"] for b in db.blacklist()] == ["X"]
     assert (paths.data / "posters" / "heat-1995.jpg").exists()
-    assert (paths.data / "logos" / "newsTV.png").exists()
+    assert not (paths.data / "logos").exists()
 
 
 def test_rerun_refreshes_db_but_keeps_config(v1, paths):

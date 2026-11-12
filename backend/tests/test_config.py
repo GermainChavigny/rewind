@@ -58,3 +58,9 @@ def test_mask_and_restore_secrets():
 
     shown["tmdb"]["api_key"] = "changed"
     assert restore_secrets(Config.model_validate(shown), old).tmdb.api_key == "changed"
+
+
+def test_old_image_logos_are_dropped():
+    old = {"id": "news", "name": "News", "logo": "custom:newsTV.png", "show_name": True}
+    assert Channel.model_validate(old).logo_style == 1
+    assert Channel.model_validate({"id": "a", "name": "A", "logo": "retro:2"}).logo_style == 2
