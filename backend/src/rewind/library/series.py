@@ -133,8 +133,14 @@ class SeriesManager:
         errors: list[str] = []
         if scope == "episode":
             s, e = int(season or 0), int(episode or 0)
-            candidates = self._candidates(f"{title} S{s:02d}E{e:02d}")
             target = {"season": s, "episode": e, "episode_id": episode_id(show_id, s, e)}
+            candidates = self._candidates(f"{title} S{s:02d}E{e:02d}")
+            if not candidates:
+                # Single-episode releases are rare for some shows: fall back on the
+                # season pack, from which only this episode's file is taken.
+                candidates = self._candidates(f"{title} S{s:02d}")
+                log.info("%s S%02dE%02d: no single-episode release, trying the season pack",
+                         show_id, s, e)  # fmt: skip
             if candidates:
                 queued.append(self._start_pack(show, candidates, [target], "episode", s))
             else:
@@ -168,7 +174,12 @@ class SeriesManager:
 
     def _candidates(self, query: str, top: int = 6) -> list[str]:
         """Several magnets: the worker tries the next one when a candidate is dead."""
-        return [r.magnet for r in self.indexers.search(query, limit=25, cat=CAT_TV)][:top]
+        indexers = self.indexers
+        releases = indexers.search(query, limit=25, cat=CAT_TV)
+        if not releases:
+            # Some releases are filed outside the TV categories: search them all.
+            releases = indexers.search(query, limit=25)
+        return [r.magnet for r in releases][:top]
 
     def _season_targets(self, show: dict, season: int) -> list[dict]:
         episodes = self.tmdb.tv_season(show["tmdb_id"], season) or []

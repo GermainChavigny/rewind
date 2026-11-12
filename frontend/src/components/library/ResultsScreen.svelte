@@ -151,9 +151,7 @@
         </button>
       {/if}
       {#if !isSeries}
-        <button class="navbtn" onclick={() => search.cycleSort()}>
-          [{t('sort.label', { sort: t(`sort.${search.sort}`) })}]
-        </button>
+        <button class="navbtn fixed" onclick={() => search.cycleSort()}>[{t(`sort.${search.sort}`)}]</button>
       {/if}
     {/snippet}
   </LibraryFooter>

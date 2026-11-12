@@ -30,6 +30,7 @@
 
   let root: HTMLElement;
   let detail: HTMLElement | undefined = $state();
+  let list: HTMLElement | undefined = $state();
   let tab = $state<'movies' | 'series'>('movies');
   let sort = $state<(typeof SORTS)[number]>('default');
   let filter = $state<(typeof FILTERS)[number]>('unseen');
@@ -113,6 +114,14 @@
     return { item: last, verb: 'resume' };
   }
 
+  // Changing tab, filter or sort re-reveals the list (not on each catalog refresh).
+  $effect(() => {
+    void tab;
+    void filter;
+    void sort;
+    void tick().then(() => list && reveal(list, '.row'));
+  });
+
   const ownedCount = (show: Media) => library.readyEpisodes(show.id).length;
 
   onMount(() => {
@@ -144,7 +153,7 @@
           <button class:active={currentTab === 'series'} onclick={() => (tab = 'series')}>{t('lib.series')}</button>
         </div>
       {/if}
-      <div class="list">
+      <div class="list" bind:this={list}>
         {#each visible as item (item.id)}
           {@const st = statusInfo(item)}
           <button
@@ -165,7 +174,9 @@
             {/if}
           </button>
         {:else}
-          <div class="empty">{currentTab === 'series' ? t('lib.empty_series') : t('lib.empty')}</div>
+          {#if currentTab === 'series' ? !hasShows : !hasMovies}
+            <div class="empty">{currentTab === 'series' ? t('lib.empty_series') : t('lib.empty')}</div>
+          {/if}
         {/each}
       </div>
     </div>
@@ -235,12 +246,12 @@
   <LibraryFooter>
     {#snippet actions()}
       {#if currentTab === 'movies'}
-        <button class="navbtn" onclick={() => (filter = FILTERS[(FILTERS.indexOf(filter) + 1) % FILTERS.length])}>
+        <button class="navbtn fixed" onclick={() => (filter = FILTERS[(FILTERS.indexOf(filter) + 1) % FILTERS.length])}>
           [{t(`filter.${filter}`)}]
         </button>
       {/if}
-      <button class="navbtn" onclick={() => (sort = SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length])}>
-        [{t('sort.label', { sort: t(`sort.${sort}`) })}]
+      <button class="navbtn fixed" onclick={() => (sort = SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length])}>
+        [{t(`sort.${sort}`)}]
       </button>
     {/snippet}
   </LibraryFooter>

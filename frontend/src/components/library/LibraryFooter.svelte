@@ -25,6 +25,11 @@
 </CrtFooter>
 
 <style>
+  /* Fixed width: changing the sort or filter must not move the footer. */
+  :global(.navbtn.fixed) {
+    width: 7.6em;
+    text-align: center;
+  }
   .sq {
     font-size: 0.85em;
   }

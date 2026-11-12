@@ -146,7 +146,7 @@ class IndexerConfig(_Model):
     indexer: str = "all"
     min_seeders: int = 1
     max_size_gb: float = 6
-    timeout_s: float = 15
+    timeout_s: float = 30  # Jackett's aggregate can take 20 s+ on slow trackers
     # systemd user unit started when the indexer doesn't answer (e.g. "jackett.service").
     systemd_unit: str | None = None
 

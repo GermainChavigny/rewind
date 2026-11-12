@@ -19,7 +19,6 @@
   let photoBroken = $state(false);
 
   const picking = $derived(CRITERIA.find((c) => c.key === advisor.picker) ?? null);
-  const left = $derived(advisor.recs.filter(Boolean).length);
 
   function openPicker(key: string) {
     advisor.picker = key;
@@ -41,9 +40,7 @@
 </script>
 
 <div class="movie-screen" bind:this={root}>
-  <CrtHeader title={t('adv.title')}>
-    {#snippet meta()}{#if advisor.view === 'recs' && left}{t('adv.picks', { n: left })}{/if}{/snippet}
-  </CrtHeader>
+  <CrtHeader title={t('adv.title')} />
 
   {#if advisor.view === 'criteria'}
     <div class="criteria">
@@ -86,7 +83,7 @@
     <div class="recs">
       {#each advisor.recs as rec, i (i)}
         {#if rec}
-          <div class="rec">
+          <div class="rec" data-reveal>
             <Poster src={rec.poster_url} width={115} />
             <div class="r-title">{rec.title}</div>
             <div class="r-year">{rec.year ?? ''}</div>
@@ -97,7 +94,7 @@
             <div class="r-sum">{rec.summary}</div>
           </div>
         {:else}
-          <div class="rec forgotten">{t('adv.forgotten')}</div>
+          <div class="rec forgotten" data-reveal>{t('adv.forgotten')}</div>
         {/if}
       {/each}
     </div>

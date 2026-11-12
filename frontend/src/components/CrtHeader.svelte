@@ -42,13 +42,23 @@
   .title {
     font-size: var(--fs-xl);
     color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
   .meta {
     font-size: var(--fs-m);
     color: var(--crt-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
   .right {
     margin-left: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
     display: flex;
     align-items: baseline;
     gap: 14px;

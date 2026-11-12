@@ -36,7 +36,10 @@ export function blip(kind: 'click' | 'tick'): void {
  * Staggered "loading" reveal of a screen's elements (v1 RetroFx): each element
  * pops in after the previous one, with a tick every other element.
  */
-export function reveal(root: HTMLElement, selector = '[data-reveal]', max = 26): void {
+export const REVEAL = '[data-reveal], .detail > *';
+
+export function reveal(root: HTMLElement | null | undefined, selector = REVEAL, max = 26): void {
+  if (!root) return; // the screen may have closed meanwhile
   const items = [...root.querySelectorAll<HTMLElement>(selector)].slice(0, max);
   items.forEach((el, i) => {
     const delay = i * 32;
@@ -46,6 +49,6 @@ export function reveal(root: HTMLElement, selector = '[data-reveal]', max = 26):
       easing: 'steps(1, start)',
       fill: 'backwards',
     });
-    if (i % 2 === 0) setTimeout(() => blip('tick'), delay);
+    setTimeout(() => blip('tick'), delay); // one tick per element, as v1
   });
 }

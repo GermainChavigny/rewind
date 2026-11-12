@@ -55,8 +55,10 @@
     try {
       const v = await api.season(show.id, n);
       if (n !== season) return; // season changed meanwhile
+      const firstOfSeason = view?.season !== v.season;
       view = v;
       failed = false;
+      if (firstOfSeason) void tick().then(() => root && reveal(root, '.episodes .ep, .detail > *'));
       notice = noticeText(v.notice);
       if (scrollToSelected) {
         scrollToSelected = false;
@@ -122,7 +124,7 @@
   }
 
   onMount(() => {
-    void load().then(() => reveal(root));
+    void load().then(() => reveal(root, '[data-reveal]'));
     timer = setInterval(() => void load(), POLL_MS);
   });
   onDestroy(() => clearInterval(timer));
@@ -149,6 +151,7 @@
           {@const st = stateOf(e)}
           {@const seen = st === 'ready' && e.watched}
           <button
+            data-reveal
             class="ep {st}"
             class:watched={seen}
             class:converting={st === 'downloading' && e.phase === 'transcoding'}
@@ -227,17 +230,23 @@
   }
   .left {
     flex: 1 1 58%;
+    min-width: 0;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     min-height: 0;
     border-right: 3px solid var(--crt-border);
   }
+  /* Many seasons (The Simpsons: 38) wrap in a small block, never widen the column. */
   .seasons {
     display: flex;
+    flex-wrap: wrap;
     gap: 4px;
     padding: 6px 8px 4px var(--safe-x);
-    overflow-x: auto;
+    max-height: 88px;
+    overflow-y: auto;
     flex: 0 0 auto;
+    border-bottom: 2px solid var(--crt-divider);
   }
   .seasons button {
     flex: 0 0 auto;
@@ -255,6 +264,7 @@
   }
   .episodes {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 2px 8px 6px var(--safe-x);
   }
@@ -317,6 +327,8 @@
   }
   .detail {
     flex: 1 1 42%;
+    min-width: 0;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 3px;
