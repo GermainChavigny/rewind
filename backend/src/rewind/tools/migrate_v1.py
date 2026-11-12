@@ -315,7 +315,10 @@ def migrate_v1(paths: Paths, overwrite_config: bool = False) -> MigrationReport:
         store.save(config_from_v1(snap, report))
         report.config_written = True
 
-    db_from_v1(snap, Database(paths.data / "rewind.db"), report)
+    db = Database(paths.data / "rewind.db")
+    db_from_v1(snap, db, report)
+    # An imported v1 setup is already configured: no first-run wizard for it.
+    db.set_kv("setup_done", True)
     report.counts["posters"] = _copy_files(snap / "posters", paths.data / "posters")
     report.counts["logos"] = _copy_files(snap / "app" / "logos", paths.data / "logos")
     return report

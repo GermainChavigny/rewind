@@ -1,0 +1,87 @@
+/* Phone admin: plain, large touch targets, readable on any screen. */
+:root {
+  --ink: #1b2330;
+  --muted: #5d6878;
+  --line: #d9dee7;
+  --paper: #f5f7fa;
+  --card: #ffffff;
+  --accent: #1f5fbf;
+  --accent-ink: #ffffff;
+  --warn: #b25a00;
+  --bad: #b3261e;
+  --ok: #17703a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --ink: #e9edf3;
+    --muted: #9aa5b5;
+    --line: #2d3644;
+    --paper: #121822;
+    --card: #1a222e;
+    --accent: #5b8fe6;
+    --accent-ink: #0b1220;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+}
+button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+button.danger {
+  color: var(--bad);
+}
+button:disabled {
+  opacity: 0.5;
+}
+input,
+select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+label {
+  display: block;
+  margin: 12px 0;
+}
+label > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.check input {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+}

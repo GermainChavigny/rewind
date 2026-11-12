@@ -11,7 +11,7 @@
  *   playing, else YouTube. The library channel opens the library.
  */
 
-import { api, ApiError, type Alarm, type Channel, type Media, type UiSettings, type Weather } from './api';
+import { api, ApiError, learn, type Alarm, type Channel, type Media, type UiSettings, type Weather } from './api';
 import { setLanguage, t } from './i18n';
 import { buildKeyLookup, channelNumber, type Action } from './keymap';
 import { advisor } from './advisor.svelte';
@@ -69,6 +69,8 @@ class Tv {
   now = $state(new Date());
 
   private keys = new Map<string, Action>();
+  /** Action the phone asked to learn a key for (polled from the server). */
+  learning: string | null = null;
   youtube: YouTubeChannel | null = null;
   private timers: Record<string, ReturnType<typeof setTimeout>> = {};
   private lastAlarmMinute: string | null = null;
@@ -78,6 +80,7 @@ class Tv {
 
   async init(): Promise<void> {
     setInterval(() => (this.now = new Date()), 1000);
+    setInterval(() => void learn.pending().then((r) => (this.learning = r.action)).catch(() => {}), 1000);
     while (!this.ready) {
       try {
         await this.load();
@@ -142,6 +145,12 @@ class Tv {
 
   onKey(event: KeyboardEvent): void {
     wakeAudio();
+    if (this.learning) {
+      // The phone is learning a key: this press is the new key, not an action.
+      event.preventDefault();
+      void learn.offer(event.key).catch(() => {});
+      return;
+    }
     const action = this.keys.get(event.key);
     if (this.ringing) {
       this.stopAlarm();

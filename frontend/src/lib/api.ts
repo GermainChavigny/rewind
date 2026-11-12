@@ -280,5 +280,11 @@ export const api = {
     call<unknown>('POST', '/api/advisor/forget', r),
 };
 
+/** Remote key learning (the phone asks, the TV reports the next key press). */
+export const learn = {
+  pending: () => call<{ action: string | null }>('GET', '/api/remote/learn'),
+  offer: (key: string) => call<{ accepted: boolean }>('POST', '/api/remote/learn', { key }),
+};
+
 export const posterUrl = (id: string) => `/api/posters/${encodeURIComponent(id)}`;
 export const mediaUrl = (file: string) => `/media/${encodeURIComponent(file)}`;

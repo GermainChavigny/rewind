@@ -54,7 +54,7 @@ def status(request: Request, ctx: AppContext = Depends(check_pin)) -> dict:
     """What the setup wizard needs to know."""
     config = ctx.config
     return {
-        "first_run": not (ctx.paths.config / "config.toml").exists(),
+        "first_run": not ctx.db.get_kv("setup_done", False),
         "has_pin": bool(config.admin.pin),
         "channels": len(config.channels),
         "power": config.power.provider,
@@ -62,6 +62,13 @@ def status(request: Request, ctx: AppContext = Depends(check_pin)) -> dict:
         "library": config.library.enabled,
         "version": request.app.version,
     }
+
+
+@router.post("/setup/complete")
+def setup_complete(ctx: AppContext = Depends(check_pin)) -> dict:
+    """The wizard is finished: the admin shows the settings menu from now on."""
+    ctx.db.set_kv("setup_done", True)
+    return {"first_run": False}
 
 
 class LearnIn(BaseModel):

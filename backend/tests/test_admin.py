@@ -2,12 +2,16 @@ from rewind.learn import KeyLearner
 from tests.conftest import sample_config
 
 
-def test_status_reports_first_run(make_client):
-    client = make_client()
-    assert client.get("/api/admin/status").json()["first_run"] is True
+def test_status_reports_first_run(make_client, paths):
+    from rewind.db import Database
+
     client = make_client(sample_config())
+    # A saved config is not enough: the wizard counts as done only when it finishes.
+    assert client.get("/api/admin/status").json()["first_run"] is True
+    assert client.post("/api/admin/setup/complete").status_code == 200
     status = client.get("/api/admin/status").json()
     assert status["first_run"] is False and status["channels"] == 3
+    assert Database(paths.data / "rewind.db").get_kv("setup_done") is True
 
 
 def test_pin_protects_admin_only(make_client):

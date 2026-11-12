@@ -10,6 +10,12 @@ export default defineConfig({
     host: true,
     proxy: { '/api': backend, '/media': backend },
   },
-  build: { target: 'es2022', assetsInlineLimit: 0 },
+  build: {
+    target: 'es2022',
+    assetsInlineLimit: 0,
+    rollupOptions: {
+      input: { main: 'index.html', admin: 'admin/index.html' },
+    },
+  },
   test: { include: ['src/**/*.test.ts'] },
 });
