@@ -51,11 +51,15 @@ run `/opt/rewind/install.sh update` yourself on the TV (sudo).
 - `rewind.service`: the backend, a systemd **user** service on port 8080.
 - `rewind-kiosk.service`: cage + Chromium on tty1, in place of the login
   prompt (other consoles: Ctrl+Alt+F2).
+- [Jackett](https://github.com/Jackett/Jackett) (`jackett.service`, user
+  service on port 9117), already connected to REWIND: to search movies, add
+  sites from the phone (**Films et séries → Ouvrir Jackett**). A Jackett that
+  is already there is reused.
 - uBlock Origin Lite for the YouTube channels, a polkit rule so the phone's
   power key can turn the computer off, and `rewind` in `/usr/local/bin`.
 
 Options (after `bash -s --`): `--kiosk service|boot-menu|none`, `--port N`,
-`--no-ublock`, `--version X.Y.Z`, `--from rewind.tar.gz`. If REWIND v1's boot
+`--no-ublock`, `--no-jackett`, `--version X.Y.Z`, `--from rewind.tar.gz`. If REWIND v1's boot
 menu is installed, the installer keeps it and its v2 entry starts the cage kiosk.
 
 ### Uninstall

@@ -35,7 +35,35 @@ def main(argv: list[str] | None = None) -> int:
     get = sub.add_parser("config-get", help="print a config value, e.g. display.mode")
     get.add_argument("key")
 
+    ix = sub.add_parser(
+        "setup-indexer",
+        help="add (or update the key of) a Jackett indexer in config.toml (used by install.sh)",
+    )
+    ix.add_argument("--url", default="http://127.0.0.1:9117")
+    ix.add_argument("--api-key", required=True)
+    ix.add_argument("--unit", default="jackett.service", help="systemd user unit that runs it")
+
     args = parser.parse_args(argv)
+
+    if args.command == "setup-indexer":
+        from rewind.config import ConfigStore, IndexerConfig
+        from rewind.paths import Paths
+
+        store = ConfigStore(Paths.from_env().ensure().config / "config.toml")
+        cfg = store.get().model_copy(deep=True)
+        url = args.url.rstrip("/")
+        same = [i for i in cfg.indexers if i.url.rstrip("/") == url]
+        if same:
+            same[0].api_key = args.api_key
+            same[0].systemd_unit = same[0].systemd_unit or args.unit
+            print(f"indexer {url}: key updated")
+        else:
+            cfg.indexers.append(
+                IndexerConfig(name="Jackett", url=url, api_key=args.api_key, systemd_unit=args.unit)
+            )
+            print(f"indexer {url}: added")
+        store.save(cfg)
+        return 0
 
     if args.command == "config-get":
         from rewind.config import ConfigStore

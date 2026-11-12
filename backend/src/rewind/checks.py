@@ -91,7 +91,32 @@ def check_indexer(ix: IndexerConfig, http: httpx.Client) -> dict:
         return _result(False, "Réponse inattendue : est-ce bien Jackett ?")
     if root.tag == "error":
         return _result(False, f"Jackett : {root.get('description') or 'erreur'}.")
-    return _result(True, "Jackett répond : la clé fonctionne.")
+    if ix.indexer == "all" and (count := _configured_indexers(ix, http)) == 0:
+        # Pre-installed Jackett: the key works but no site was added yet.
+        return _result(
+            False,
+            "Jackett répond, mais aucun site n'est ajouté : ouvrez Jackett et "
+            "cliquez sur « + Add indexer ».",
+        )
+    sites = f" ({count} site{'s' if count and count > 1 else ''})" if count else ""
+    return _result(True, f"Jackett répond : la clé fonctionne{sites}.")
+
+
+def _configured_indexers(ix: IndexerConfig, http: httpx.Client) -> int | None:
+    """How many sites Jackett has (None: could not tell)."""
+    url = f"{ix.url.rstrip('/')}/api/v2.0/indexers/all/results/torznab/api"
+    try:
+        resp = http.get(
+            url,
+            params={"apikey": ix.api_key, "t": "indexers", "configured": "true"},
+            timeout=TIMEOUT,
+        )
+        root = ET.fromstring(resp.content)
+    except (httpx.HTTPError, ET.ParseError):
+        return None
+    if root.tag != "indexers":
+        return None
+    return len(root.findall("indexer"))
 
 
 def check_advisor(p: AdvisorProvider, http: httpx.Client) -> dict:

@@ -188,6 +188,12 @@ built by `scripts/build-release.sh`):
   files; `.complete` marks a finished build. `current` is switched atomically;
   the current and previous releases are kept. `rewind.env` gives the port and
   `REWIND_INSTALL_DIR`/`REWIND_FRONTEND_DIR` to `rewind.service` (user unit).
+- **Jackett** (default, `--no-jackett` to skip): reused if a `jackett.service`
+  user unit or `~/Jackett` exists, else the release for the arch is unpacked
+  in `/opt/rewind/jackett` (it updates itself; ICU from apt). On its first
+  start Jackett writes `~/.config/Jackett/ServerConfig.json`: install.sh turns
+  on `AllowExternal` (the phone opens its page to add sites) and gives the key
+  to `rewind setup-indexer`. The admin "Test" counts the configured sites.
 - **Kiosk mode**: `service` (default), `boot-menu` (detected when v1's boot
   menu is installed: nothing on tty1 changes, the menu's v2 entry starts the
   kiosk, which starts the backend), `none`.

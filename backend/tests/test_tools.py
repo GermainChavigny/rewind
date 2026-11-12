@@ -236,3 +236,23 @@ def test_event_bus_delivers_to_subscribers():
         assert bus.listeners == 0
 
     asyncio.run(scenario())
+
+
+def test_check_indexer_counts_jackett_sites():
+    from rewind.checks import check_indexer
+
+    sites = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.params["t"] == "caps":
+            return httpx.Response(200, text="<caps><server/></caps>")
+        items = "".join(f'<indexer id="s{i}"/>' for i in range(sites["n"]))
+        return httpx.Response(200, text=f"<indexers>{items}</indexers>")
+
+    http = httpx.Client(transport=httpx.MockTransport(handler))
+    ix = IndexerConfig(url="http://jackett:9117", api_key="k")
+    res = check_indexer(ix, http)  # freshly installed: no site yet
+    assert not res["ok"] and "Add indexer" in res["message"]
+    sites["n"] = 3
+    res = check_indexer(ix, http)
+    assert res["ok"] and "3 sites" in res["message"]

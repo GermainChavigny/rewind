@@ -148,8 +148,9 @@
   <Window title="Recherche de films" lamp={lampOf(cfg.indexers.some((i: Cfg) => has(i.api_key)))}>
     {#snippet help()}
       <p>
-        Jackett interroge les sites de torrents pour trouver les films. Il tourne sur le PC de la télé, à côté de
-        REWIND.
+        Jackett interroge les sites de torrents pour trouver les films. Il est déjà installé sur le PC de la télé et
+        relié à REWIND : il reste à lui ajouter des sites avec <strong>Ouvrir Jackett</strong>, puis
+        <strong>+ Add indexer</strong>.
       </p>
     {/snippet}
     {#each cfg.indexers as ix, i (i)}
@@ -157,6 +158,16 @@
         <label><span>Nom</span><input bind:value={ix.name} /></label>
         <label><span>Adresse de Jackett</span><input bind:value={ix.url} autocapitalize="off" inputmode="url" /></label>
         <Secret bind:value={ix.api_key} label="Clé API Jackett" />
+        <a class="open-jackett" href={phoneUrl(ix.url, location.hostname)} target="_blank" rel="noreferrer">
+          <Glyph name="external" /> Ouvrir Jackett (ajouter des sites)
+        </a>
+        <Help label="Ajouter des sites dans Jackett">
+          <ol>
+            <li>Touchez <strong>Ouvrir Jackett</strong> ci-dessus (nouvel onglet).</li>
+            <li>Touchez <strong>+ Add indexer</strong>, cherchez un site, puis le <strong>+</strong> à côté.</li>
+            <li>Revenez ici et touchez <strong>Tester</strong> : il compte les sites ajoutés.</li>
+          </ol>
+        </Help>
         <Help label="Où trouver la clé Jackett ?">
           <ol>
             <li>
@@ -167,7 +178,10 @@
             <li>La <strong>API Key</strong> est en haut à droite : copiez-la.</li>
             <li>Ajoutez des sites avec <strong>+ Add indexer</strong> si la liste est vide.</li>
           </ol>
-          <p>Laissez l'adresse <code>http://127.0.0.1:9117</code> si Jackett est installé sur le même PC.</p>
+          <p>
+            Avec le Jackett installé par REWIND, la clé est déjà remplie. Laissez l'adresse
+            <code>http://127.0.0.1:9117</code> : c'est celle du Jackett de la télé.
+          </p>
         </Help>
         <label><span>Relancer Jackett s'il s'arrête</span><input bind:value={ix.systemd_unit} placeholder="jackett.service" autocapitalize="off" /></label>
         <Help label="À quoi ça sert ?">
@@ -253,6 +267,24 @@
 {/if}
 
 <style>
+  .open-jackett {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    margin: 10px 0;
+    padding: 8px 16px;
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    background: var(--win);
+    color: var(--ink);
+    font: 17px/1.1 var(--cond);
+    text-decoration: none;
+    box-shadow:
+      inset 2px 2px 0 var(--hi),
+      inset -2px -2px 0 var(--lo);
+  }
   .stepper {
     display: flex;
     align-items: center;

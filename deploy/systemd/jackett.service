@@ -1,0 +1,15 @@
+# Jackett (torrent indexer for the movie search), a systemd *user* service of
+# the TV user. Installed by install.sh (@JACKETT@ = its folder). Jackett updates
+# itself; its launcher waits for the updater, then systemd restarts it.
+[Unit]
+Description=Jackett (torrent indexer)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=@JACKETT@/jackett_launcher.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

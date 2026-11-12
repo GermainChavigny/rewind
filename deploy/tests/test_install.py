@@ -23,7 +23,13 @@ STUBS = {
     # Root commands just run (everything stays inside the temporary tree).
     "sudo": 'if [ "$1" = -v ] || [ "$1" = -n ]; then exit 0; fi; exec "$@"',
     "apt-get": 'echo "apt-get $*" >> "$STUB_LOG"',
-    "systemctl": 'echo "systemctl $*" >> "$STUB_LOG"',
+    # Starting Jackett the first time makes it write its settings (key, port).
+    "systemctl": 'echo "systemctl $*" >> "$STUB_LOG"; '
+    'if [ "$*" = "--user start jackett.service" ] && [ -n "$JACKETT_FIRST_RUN" ] '
+    '&& [ ! -f "$HOME/.config/Jackett/ServerConfig.json" ]; then '
+    'mkdir -p "$HOME/.config/Jackett"; printf \'{"Port": 9117, "APIKey": "jkey", '
+    '"AllowExternal": false}\' > "$HOME/.config/Jackett/ServerConfig.json"; fi',
+    "apt-cache": "printf 'libicu74\\nlibicu76\\nlibicu-dev\\n'",
     "loginctl": 'echo "loginctl $*" >> "$STUB_LOG"; [ "$1" = show-user ] && echo no; exit 0',
     "chown": 'echo "chown $*" >> "$STUB_LOG"',
     "hostname": "echo 192.0.2.10",
@@ -38,7 +44,7 @@ if [ "$1" = -m ] && [ "$2" = venv ]; then
   mkdir -p "$dir/bin"
   printf '#!/bin/sh\\necho "pip $*" >> "$STUB_LOG"\\n' > "$dir/bin/pip"
   printf '#!/bin/sh\\nexit 0\\n' > "$dir/bin/python"
-  printf '#!/bin/sh\\necho rewind\\n' > "$dir/bin/rewind"
+  printf '#!/bin/sh\\necho "rewind $*" >> "$STUB_LOG"\\n' > "$dir/bin/rewind"
   chmod +x "$dir/bin/"*
   exit 0
 fi
@@ -54,6 +60,7 @@ done
 echo "curl $url" >> "$STUB_LOG"
 case "$url" in
   https://api.github.com/repos/*/releases/assets/*) cp "$GH_DIR/assets/${url##*/}" "$out" ;;
+  https://github.com/*) cp "$GH_DIR/web/${url##*/}" "$out" || exit 22 ;;
   https://api.github.com/*) f="$GH_DIR/${url#https://api.github.com/}.json"; [ -f "$f" ] || exit 22; cp "$f" "$out" ;;
   *) exit 22 ;;
 esac
@@ -72,7 +79,9 @@ class Box:
         self.sysroot = self.tmp / "root"
         self.gh = self.tmp / "github"
         self.log = self.tmp / "stub.log"
-        for d in (self.bin, self.home, self.sysroot / "etc/systemd/system", self.gh / "assets"):
+        dirs = (self.bin, self.home, self.sysroot / "etc/systemd/system", self.gh / "assets",
+                self.gh / "web")
+        for d in dirs:
             d.mkdir(parents=True)
         self.log.touch()
         for name, body in STUBS.items():
@@ -121,6 +130,22 @@ class Box:
             )
         )
 
+    def publish_jackett(self) -> None:
+        """A fake Jackett release on GitHub (its launcher is all install.sh needs)."""
+        top = self.tmp / "jk" / "Jackett"
+        top.mkdir(parents=True)
+        (top / "jackett_launcher.sh").write_text("#!/bin/sh\n")
+        (top / "jackett_launcher.sh").chmod(0o755)
+        name = "Jackett.Binaries.LinuxAMDx64.tar.gz"
+        with tarfile.open(self.gh / "web" / name, "w:gz") as tar:
+            tar.add(top, arcname="Jackett")
+        api = self.gh / "repos" / "Jackett" / "Jackett" / "releases"
+        api.mkdir(parents=True)
+        url = f"https://github.com/Jackett/Jackett/releases/download/v0.24/{name}"
+        (api / "latest.json").write_text(
+            json.dumps({"assets": [{"name": name, "browser_download_url": url}]})
+        )
+
     def run(self, *args: str, script: Path | None = None, check: bool = True):
         env = {
             "PATH": f"{self.bin}:/usr/bin:/bin",
@@ -133,6 +158,8 @@ class Box:
             "STUB_LOG": str(self.log),
             "GH_DIR": str(self.gh),
             "MISSING_PKGS": self.missing,
+            "JACKETT_FIRST_RUN": "1",
+            "REWIND_JACKETT_WAIT": "1",
         }
         proc = subprocess.run(
             ["bash", str(script or INSTALL), *args],
@@ -279,6 +306,68 @@ def test_uninstall_keeps_the_library():
         assert not (box.home / ".config/systemd/user/rewind.service").exists()
         assert (data / "rewind.db").is_file()
         assert "loginctl disable-linger" in box.calls()
+    finally:
+        box.cleanup()
+
+
+def test_jackett_is_installed_and_connected_by_default():
+    box = Box()
+    try:
+        box.publish_jackett()
+        box.missing = "libicu76"
+        out = box.run("--from", str(box.release("0.5.0")), "--no-ublock").stdout
+        assert (box.prefix / "jackett" / "jackett_launcher.sh").is_file()
+        unit = (box.home / ".config/systemd/user/jackett.service").read_text()
+        assert f"ExecStart={box.prefix}/jackett/jackett_launcher.sh" in unit
+        assert (box.prefix / ".state" / "jackett").read_text().strip() == "managed"
+        calls = box.calls()
+        assert "--no-install-recommends libicu76" in calls  # its .NET runtime needs ICU
+        assert "systemctl --user enable --quiet jackett.service" in calls
+        # The key goes into REWIND's settings; the phone may open Jackett's page.
+        assert (
+            "rewind setup-indexer --url http://127.0.0.1:9117 --api-key jkey "
+            "--unit jackett.service" in calls
+        )
+        jconf = json.loads((box.home / ".config/Jackett/ServerConfig.json").read_text())
+        assert jconf["AllowExternal"] is True
+        assert "add sites" in out
+
+        box.run("uninstall", "--yes", "--purge", script=box.prefix / "install.sh")
+        assert not (box.home / ".config/systemd/user/jackett.service").exists()
+        assert not (box.home / ".config/Jackett").exists()
+    finally:
+        box.cleanup()
+
+
+def test_a_jackett_already_there_is_reused_and_left_alone():
+    box = Box()
+    try:
+        units = box.home / ".config/systemd/user"
+        units.mkdir(parents=True)
+        (units / "jackett.service").write_text("[Service]\nExecStart=/home/x/Jackett/run\n")
+        conf = box.home / ".config/Jackett"
+        conf.mkdir(parents=True)
+        (conf / "ServerConfig.json").write_text('{"Port": 9117, "APIKey": "old", "AllowExternal": true}')
+        box.run("--from", str(box.release("0.5.0")), "--no-ublock")
+        assert not (box.prefix / "jackett").exists()
+        assert "ExecStart=/home/x/Jackett/run" in (units / "jackett.service").read_text()
+        assert "--api-key old" in box.calls()
+        assert "libicu" not in box.calls()  # nothing to add for it
+        out = box.run("uninstall", "--yes", script=box.prefix / "install.sh").stdout
+        assert (units / "jackett.service").is_file() and "left as it was" in out
+    finally:
+        box.cleanup()
+
+
+def test_install_goes_on_when_jackett_cannot_be_downloaded():
+    box = Box()  # no Jackett release on the fake GitHub
+    try:
+        proc = box.run("--from", str(box.release("0.5.0")), "--no-ublock")
+        assert box.version() == "0.5.0"
+        assert "Jackett could not be installed" in proc.stderr
+        assert not (box.home / ".config/systemd/user/jackett.service").exists()
+        assert "--no-jackett" not in proc.stdout
+        assert "setup-indexer" not in box.calls()
     finally:
         box.cleanup()
 

@@ -16,7 +16,7 @@
 # While the repository is private, set GITHUB_TOKEN (kept for the updates).
 #
 # Options: --from FILE (a local rewind.tar.gz), --version X.Y.Z, --user NAME,
-#          --kiosk service|boot-menu|none, --port N, --no-ublock, --yes
+#          --kiosk service|boot-menu|none, --port N, --no-ublock, --no-jackett, --yes
 #
 # Layout: /opt/rewind/releases/<version>-<timestamp>/ (venv, frontend, deploy),
 # /opt/rewind/current → the active one, owned by the TV user so that updates
@@ -43,7 +43,8 @@ usage() { sed -n '2,24p' "$0" 2>/dev/null | sed 's/^# \{0,1\}//'; exit "${1:-0}"
 
 # --- arguments -------------------------------------------------------------------
 
-CMD=install FROM= WANT_VERSION= TARGET_USER= KIOSK=auto PORT= UBLOCK=1 YES=0 PURGE=0
+CMD=install FROM= WANT_VERSION= TARGET_USER= KIOSK=auto PORT= UBLOCK=1 JACKETT=1 YES=0 PURGE=0
+WITH_JACKETT_DEPS=0   # only the first install adds Jackett's system library (ICU)
 case "${1:-}" in
   install|update|rollback|status|uninstall) CMD="$1"; shift ;;
 esac
@@ -55,6 +56,7 @@ while [ $# -gt 0 ]; do
     --kiosk) KIOSK="$2"; shift ;;
     --port) PORT="$2"; shift ;;
     --no-ublock) UBLOCK=0 ;;
+    --no-jackett) JACKETT=0 ;;
     --purge) PURGE=1 ;;
     -y|--yes) YES=1 ;;
     -h|--help) usage ;;
@@ -180,6 +182,10 @@ check_system() {
 
 wanted_packages() {
   grep -v '^\s*#' "$SRC/deploy/apt-packages" | sed '/^\s*$/d'
+  # Jackett (.NET) needs ICU, whose package name carries its version (libicu76…).
+  if [ "$WITH_JACKETT_DEPS" = 1 ]; then
+    apt-cache pkgnames libicu 2>/dev/null | grep -E '^libicu[0-9]+$' | sort -V | tail -1
+  fi
   # Keep a PulseAudio that is already there (e.g. next to REWIND v1), otherwise PipeWire.
   if dpkg-query -W -f='${Status}' pulseaudio 2>/dev/null | grep -q 'install ok installed'; then
     echo pulseaudio
@@ -305,6 +311,90 @@ print(next(a["browser_download_url"] for a in r["assets"] if a["name"].endswith(
   TOKEN="$saved"
 }
 
+# --- Jackett (torrent indexer for the movie search) -----------------------------
+
+JACKETT_UNIT="jackett.service"
+
+install_jackett() {
+  [ "$JACKETT" = 1 ] || return 0
+  local unit="$UNIT_DIR/$JACKETT_UNIT" dir= origin
+  if [ -f "$unit" ]; then
+    origin="$(cat "$STATE_DIR/jackett" 2>/dev/null || echo external)"
+    info "Jackett: already installed ($JACKETT_UNIT)"
+  elif [ -x "$USER_HOME/Jackett/jackett_launcher.sh" ]; then
+    origin=external dir="$USER_HOME/Jackett"
+    info "Jackett: using $dir"
+  else
+    origin=managed dir="$PREFIX/jackett"
+    download_jackett "$dir" || { warn "Jackett could not be installed: add it later from the phone"; return 0; }
+  fi
+  echo "$origin" | as_user tee "$STATE_DIR/jackett" >/dev/null
+  if [ -n "$dir" ]; then
+    as_user mkdir -p "$UNIT_DIR"
+    sed "s|@JACKETT@|$dir|g" "$SRC/deploy/systemd/jackett.service" | as_user tee "$unit" >/dev/null
+    user_systemctl daemon-reload
+  fi
+  user_systemctl enable --quiet "$JACKETT_UNIT"
+  user_systemctl start "$JACKETT_UNIT" || true
+  jackett_into_rewind
+}
+
+download_jackett() { # download_jackett <dir>
+  local arch json="$WORK/jackett.json" tarball="$WORK/jackett.tar.gz" url
+  case "$(dpkg --print-architecture)" in amd64) arch=LinuxAMDx64 ;; arm64) arch=LinuxARM64 ;; esac
+  step "Downloading Jackett (about 50 MB)"
+  local saved="$TOKEN"; TOKEN=""   # a public repository: never send our token there
+  fetch https://api.github.com/repos/Jackett/Jackett/releases/latest "$json" &&
+    url="$("$PYTHON" -c 'import json,sys
+r = json.load(open(sys.argv[1]))
+print(next(a["browser_download_url"] for a in r["assets"] if a["name"] == sys.argv[2]))' \
+      "$json" "Jackett.Binaries.$arch.tar.gz")" &&
+    fetch "$url" "$tarball" application/octet-stream
+  local ok=$?; TOKEN="$saved"
+  [ $ok = 0 ] || return 1
+  mkdir -p "$WORK/jackett" && tar -xzf "$tarball" -C "$WORK/jackett" || return 1
+  [ -x "$WORK/jackett/Jackett/jackett_launcher.sh" ] || return 1
+  as_user rm -rf "$1"
+  as_user cp -r "$WORK/jackett/Jackett" "$1"
+}
+
+# Jackett writes its key on first start: put it in REWIND's settings, and let
+# the phone open Jackett's page (to add sites) — it is on the home network only.
+jackett_config() { # jackett_config read|allow-external
+  as_user "$PYTHON" - "$USER_HOME/.config/Jackett/ServerConfig.json" "$1" <<'PY'
+import json, sys
+path, action = sys.argv[1:3]
+try:
+    cfg = json.load(open(path, encoding="utf-8-sig"))
+except (OSError, ValueError):
+    sys.exit(1)
+if action == "allow-external":
+    cfg["AllowExternal"] = True
+    json.dump(cfg, open(path, "w"), indent=2)
+print(cfg.get("APIKey") or "-", cfg.get("Port", 9117), int(cfg.get("AllowExternal") is True))
+PY
+}
+
+jackett_into_rewind() {
+  local i=0 wait="${REWIND_JACKETT_WAIT:-120}" out
+  until out="$(jackett_config read 2>/dev/null)"; do
+    [ $i -ge "$wait" ] && { warn "Jackett did not start: enter its key from the phone"; return 0; }
+    sleep 1; i=$((i + 1))
+  done
+  local key port external
+  read -r key port external <<< "$out"
+  if [ "$external" != 1 ]; then
+    # Stopped first: Jackett would write its own settings back.
+    user_systemctl stop "$JACKETT_UNIT" || true
+    jackett_config allow-external >/dev/null || true
+    user_systemctl start "$JACKETT_UNIT" || true
+  fi
+  [ "$key" != - ] || return 0
+  as_user "$PREFIX/current/venv/bin/rewind" setup-indexer --url "http://127.0.0.1:$port" \
+    --api-key "$key" --unit "$JACKETT_UNIT" >/dev/null &&
+    info "Jackett installed and connected to REWIND: add sites at http://<tv-ip>:$port"
+}
+
 # --- system integration (root, first install only) -------------------------------
 
 detect_kiosk() {
@@ -359,6 +449,7 @@ cmd_install() {
   local old; old="$(current_version)"
   [ -n "$old" ] && info "REWIND $old is installed: it will be replaced by $NEW_VERSION"
   local mode; mode="$( [ -f "$STATE_DIR/kiosk" ] && [ "$KIOSK" = auto ] && kiosk_mode || detect_kiosk)"
+  [ "$JACKETT" = 1 ] && [ ! -f "$UNIT_DIR/$JACKETT_UNIT" ] && WITH_JACKETT_DEPS=1
   if [ "$AS_ROOT" = 0 ]; then
     info "Some steps need administrator rights: sudo will ask for your password."
     sudo -v || die "sudo is required (or run as root with --user NAME)"
@@ -374,6 +465,7 @@ cmd_install() {
   write_env
   install_user_unit
   install_ublock
+  install_jackett
   restart_backend
   prune_releases
 
@@ -436,7 +528,7 @@ cmd_rollback() {
 
 cmd_status() {
   if [ ! -L "$PREFIX/current" ]; then echo "REWIND is not installed in $PREFIX"; return 1; fi
-  echo "REWIND $(current_version) in $PREFIX (kiosk: $(kiosk_mode))"
+  echo "REWIND $(current_version) in $PREFIX (kiosk: $(kiosk_mode), Jackett: $(cat "$STATE_DIR/jackett" 2>/dev/null || echo none))"
   echo "Releases: $(ls -1t "$PREFIX/releases" | tr '\n' ' ')"
 }
 
@@ -448,6 +540,7 @@ cmd_uninstall() {
     case "$answer" in y|Y|o|O|yes|oui) ;; *) echo "Cancelled."; return 1 ;; esac
   fi
   [ "$AS_ROOT" = 1 ] || sudo -v || die "sudo is required"
+  local jackett; jackett="$(cat "$STATE_DIR/jackett" 2>/dev/null || true)"
   step "Removing REWIND"
   if [ "$(kiosk_mode)" = service ]; then
     root systemctl disable --now --quiet rewind-kiosk.service 2>/dev/null || true
@@ -455,6 +548,11 @@ cmd_uninstall() {
     root systemctl daemon-reload
   fi
   user_systemctl disable --now --quiet rewind.service 2>/dev/null || true
+  if [ "$jackett" = managed ]; then
+    user_systemctl disable --now --quiet "$JACKETT_UNIT" 2>/dev/null || true
+    as_user rm -f "$UNIT_DIR/$JACKETT_UNIT"
+    [ "$PURGE" = 1 ] && as_user rm -rf "$USER_HOME/.config/Jackett"
+  fi
   as_user rm -f "$UNIT_DIR/rewind.service"
   user_systemctl daemon-reload 2>/dev/null || true
   root rm -f "$SYSROOT/etc/polkit-1/rules.d/50-rewind.rules"
@@ -468,6 +566,7 @@ cmd_uninstall() {
   else
     info "Your settings and library are kept in ~/.config/rewind and ~/.local/share/rewind."
   fi
+  [ "$jackett" = external ] && info "Jackett was there before REWIND: it is left as it was."
   info "System packages (cage, chromium…) are left installed."
   printf '%sREWIND removed.%s\n' "$G" "$N"
 }
