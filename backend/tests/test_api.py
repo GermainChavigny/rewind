@@ -104,11 +104,11 @@ def _forecast():
 
 def test_weather(make_client, web):
     cfg = Config()
-    cfg.weather.latitude, cfg.weather.longitude, cfg.weather.location_name = 47.39, 0.69, "Tours"
+    cfg.weather.latitude, cfg.weather.longitude, cfg.weather.location_name = 48.85, 2.35, "Paris"
     web.routes["https://api.open-meteo.com/"] = httpx.Response(200, json=_forecast())
     client = make_client(cfg)
     w = client.get("/api/weather").json()
-    assert w["location"] == "Tours" and w["code"] == 3
+    assert w["location"] == "Paris" and w["code"] == 3
     # Which periods depends on the time of day (see test_weather_shows_what_is_coming).
     today = {"offset": 0, "code": 61, "hi": 17, "lo": 8}
     tomorrow = {"offset": 1, "code": 71, "hi": 4, "lo": -1}

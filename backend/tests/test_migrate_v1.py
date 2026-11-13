@@ -17,8 +17,8 @@ STATE_MANAGER_JS = """
 """
 API_PY = """
 TV_CONTROL_URL = 'http://192.168.1.19/rpc/Switch.Set'
-WEATHER_LAT, WEATHER_LON = 47.39, 0.69
-            "code": codes[idx], "hour": times[idx][11:16], "location": "Tours",
+WEATHER_LAT, WEATHER_LON = 48.85, 2.35
+            "code": codes[idx], "hour": times[idx][11:16], "location": "Paris",
 """
 XINITRC = """
   xrandr --output HDMI-2 --mode 720x576
@@ -115,8 +115,8 @@ def test_config_from_v1(v1, paths):
     ]
     assert cfg.channels[0].logo_style == 1 and cfg.channels[0].playlist_id == "PLnews"
     assert cfg.power.provider == "shelly" and cfg.power.shelly_host == "192.168.1.19"
-    assert (cfg.weather.latitude, cfg.weather.longitude) == (47.39, 0.69)
-    assert cfg.weather.location_name == "Tours"
+    assert (cfg.weather.latitude, cfg.weather.longitude) == (48.85, 2.35)
+    assert cfg.weather.location_name == "Paris"
     assert cfg.audio.av_offset_ms == 200 and cfg.audio.output_port == "analog-output-headphones"
     assert (cfg.display.output, cfg.display.mode) == ("HDMI-A-2", "720x576")
     assert cfg.tmdb.api_key == "tmdb-k" and cfg.opensubtitles.password == "pw"
@@ -162,4 +162,4 @@ def test_rerun_refreshes_db_but_keeps_config(v1, paths):
     assert db.get_media("heat-1995")["position"] == 1234.5  # refreshed from v1
 
     assert run(v1, paths, overwrite_config=True).config_written
-    assert ConfigStore(paths.config / "config.toml").get().weather.location_name == "Tours"
+    assert ConfigStore(paths.config / "config.toml").get().weather.location_name == "Paris"

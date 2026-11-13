@@ -61,21 +61,21 @@ def test_geocode_shapes_places(make_client, web):
 
     web.routes["https://geocoding-api.open-meteo.com/"] = httpx.Response(
         200,
-        json={"results": [{"name": "Tours", "admin1": "Centre-Val de Loire", "country": "France",
-                           "latitude": 47.39414, "longitude": 0.68484}]},
+        json={"results": [{"name": "Paris", "admin1": "Île-de-France", "country": "France",
+                           "latitude": 48.85661, "longitude": 2.35222}]},
     )  # fmt: skip
     client = make_client(sample_config())
-    assert client.get("/api/admin/geocode", params={"q": "Tours"}).json() == [
+    assert client.get("/api/admin/geocode", params={"q": "Paris"}).json() == [
         {
-            "name": "Tours",
-            "detail": "Centre-Val de Loire, France",
-            "latitude": 47.3941,
-            "longitude": 0.6848,
+            "name": "Paris",
+            "detail": "Île-de-France, France",
+            "latitude": 48.8566,
+            "longitude": 2.3522,
         }
     ]
     assert client.get("/api/admin/geocode", params={"q": "T"}).json() == []
     web.routes.clear()
-    assert client.get("/api/admin/geocode", params={"q": "Tours"}).status_code == 502
+    assert client.get("/api/admin/geocode", params={"q": "Paris"}).status_code == 502
 
 
 def test_saving_applies_live_and_tells_the_tv(make_client):
