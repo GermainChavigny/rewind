@@ -1,7 +1,7 @@
 #!/bin/sh
 # REWIND on the TV screen: cage (Wayland kiosk compositor) + Chromium.
 #
-# Started by rewind-kiosk.service on tty1, or by the v1/v2 boot menu. Runs as
+# Started by rewind-kiosk.service on tty1. Runs as
 # the TV user in a login session; the backend is the rewind.service user
 # service (started here if it is not running yet).
 #
@@ -53,11 +53,9 @@ if [ -n "$OUTPUT" ]; then
   else wlr-randr --output "$OUTPUT" --preferred; fi
 fi
 
-# uBlock Origin Lite: v1's copy if there is one, else the one install.sh fetched.
+# uBlock Origin Lite, fetched by install.sh.
 EXT=""
-for dir in "$HOME/ublock_extension" "$DATA/ublock"; do
-  if [ -f "$dir/manifest.json" ]; then EXT="--load-extension=$dir"; break; fi
-done
+[ -f "$DATA/ublock/manifest.json" ] && EXT="--load-extension=$DATA/ublock"
 
 LANG_UI="$(cfg general.language)"
 CHROMIUM="$(command -v chromium || command -v chromium-browser)"

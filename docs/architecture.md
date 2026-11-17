@@ -3,7 +3,7 @@
 ```
 backend/   Python 3.11+ · FastAPI · SQLite — API, also serves the built UI
 frontend/  Svelte 5 · TypeScript · Vite — TV interface (720×576) and phone admin
-deploy/    boot menu, systemd services, kiosk (cage + Chromium)
+deploy/    installer, systemd services, kiosk (cage + Chromium)
 docs/      documentation
 ```
 
@@ -86,24 +86,13 @@ SQLite (`<data>/rewind.db`, WAL), schema migrations tracked with
 indexed fields in columns and the rest (metadata, subtitles, job state) in a
 JSON `data` column.
 
-## v1 / v2 side by side
+## Importing from v1
 
-While v2 is being developed, v1 stays in daily use:
-
-- `deploy/boot/rewind-boot`: teletext-style menu on tty1, driven by the remote;
-  boots v1 by default after 5 s. Install with `deploy/boot/install-boot-menu`
-  (undo with `--remove`).
-- `tv-switch v1|v2 [--now]`: change the default program.
 - `rewind import-v1`: snapshot of the v1 data + hardlinks to `~/movies`, then
   rebuilds the v2 database from it (alarm, YouTube progress, library). The first
   run also generates `config.toml` from the values v1 hardcoded (channels,
   Shelly IP, weather location, A/V offset, video output, API keys);
   `--overwrite-config` regenerates it. v1 is never modified.
-- v2 listens on port 8080 (v1 uses 5000 and 8000).
-- The boot menu's v2 entry starts the installed cage kiosk
-  (`/opt/rewind/current/deploy/kiosk/rewind-kiosk`) when there is one, else
-  `deploy/kiosk/start-v2`: an X session from the development checkout
-  (backend + Chromium with uBlock Origin Lite).
 
 See [v1-behaviors.md](v1-behaviors.md) for the checklist of v1 details to carry over.
 
@@ -191,14 +180,13 @@ built by `scripts/build-release.sh`):
   the current and previous releases are kept. `rewind.env` gives the port and
   `REWIND_INSTALL_DIR`/`REWIND_FRONTEND_DIR` to `rewind.service` (user unit).
 - **Jackett** (default, `--no-jackett` to skip): reused if a `jackett.service`
-  user unit or `~/Jackett` exists, else the release for the arch is unpacked
+  user unit exists, else the release for the arch is unpacked
   in `/opt/rewind/jackett` (it updates itself; ICU from apt). On its first
   start Jackett writes `~/.config/Jackett/ServerConfig.json`: install.sh turns
   on `AllowExternal` (the phone opens its page to add sites) and gives the key
   to `rewind setup-indexer`. The admin "Test" counts the configured sites.
-- **Kiosk mode**: `service` (default), `boot-menu` (detected when v1's boot
-  menu is installed: nothing on tty1 changes, the menu's v2 entry starts the
-  kiosk, which starts the backend), `none`.
+- **Kiosk mode**: `service` (default, `rewind-kiosk.service` replaces the
+  login prompt on tty1) or `none`; a reinstall keeps the mode.
 - **Updates** (`updates.py`, `/api/admin/update`): the backend asks GitHub for
   the latest release (cached 1 h) and starts `install.sh update` as a transient
   user unit (`systemd-run --user --unit=rewind-update`), which outlives the

@@ -20,10 +20,8 @@ cd "$ROOT/frontend"
 
 echo "== deploy scripts"
 cd "$ROOT"
-bash -n deploy/boot/rewind-boot deploy/boot/tv-switch deploy/boot/install-boot-menu
 bash -n deploy/install.sh scripts/build-release.sh scripts/release.sh
-sh -n deploy/kiosk/start-v2 deploy/kiosk/xinitrc-v2 deploy/kiosk/rewind-kiosk
-python3 deploy/boot/tests/test_rewind_boot.py
+sh -n deploy/kiosk/rewind-kiosk
 python3 deploy/tests/test_install.py
 
 echo "All checks passed."

@@ -11,7 +11,7 @@
 # Layout of rewind-<version>/:
 #   VERSION  install.sh  requirements.txt  rewind-<version>-py3-none-any.whl
 #   frontend/   the built UI (served by the backend)
-#   deploy/     kiosk, systemd units, polkit rule, boot menu, apt packages
+#   deploy/     kiosk, systemd units, polkit rule, apt packages
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,9 +46,6 @@ echo "== deploy files"
 mkdir -p "$DIR/deploy"
 mkdir -p "$DIR/deploy/kiosk" && cp "$ROOT/deploy/kiosk/rewind-kiosk" "$DIR/deploy/kiosk/"
 cp -r "$ROOT/deploy/systemd" "$ROOT/deploy/polkit" "$DIR/deploy/"
-mkdir -p "$DIR/deploy/boot"
-cp "$ROOT/deploy/boot/rewind-boot" "$ROOT/deploy/boot/tv-switch" \
-   "$ROOT/deploy/boot/install-boot-menu" "$DIR/deploy/boot/"
 cp "$ROOT/deploy/apt-packages" "$DIR/deploy/"
 cp "$ROOT/deploy/install.sh" "$DIR/install.sh"
 cp "$ROOT/LICENSE" "$DIR/"

@@ -58,9 +58,8 @@ run `/opt/rewind/install.sh update` yourself on the TV (sudo).
 - uBlock Origin Lite for the YouTube channels, a polkit rule so the phone's
   power key can turn the computer off, and `rewind` in `/usr/local/bin`.
 
-Options (after `bash -s --`): `--kiosk service|boot-menu|none`, `--port N`,
-`--no-ublock`, `--no-jackett`, `--version X.Y.Z`, `--from rewind.tar.gz`. If REWIND v1's boot
-menu is installed, the installer keeps it and its v2 entry starts the cage kiosk.
+Options (after `bash -s --`): `--kiosk service|none`, `--port N`,
+`--no-ublock`, `--no-jackett`, `--version X.Y.Z`, `--from rewind.tar.gz`.
 
 ### Uninstall
 
@@ -91,9 +90,6 @@ npm run build                # dist/ is then served by `rewind serve` on :8080
 ```
 
 No hardware needed: set `[power] provider = "fake"` in `config.toml`.
-
-On the TV, a checkout can run without installing: `deploy/kiosk/start-v2`
-(an X session with the backend and Chromium, from the tty1 console).
 
 ### Releases
 
