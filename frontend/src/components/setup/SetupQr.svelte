@@ -34,7 +34,8 @@
       </div>
       <div class="text">
         <p>{tv.firstRun ? t('setup.first_run') : t('setup.scan')}</p>
-        {#if url}<p class="url">{url.replace(/^https?:\/\//, '')}</p>{/if}
+        <!-- Full address, scheme included: typed without it, phone browsers try https first. -->
+        {#if url}<p class="url">{url}</p>{/if}
         {#if !lan}<p class="warn">{t('setup.no_network')}</p>{/if}
       </div>
     </div>
