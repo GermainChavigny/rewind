@@ -88,6 +88,10 @@
       <strong>{cfg.library.download_slots}</strong>
       <button onclick={() => slots(1)} aria-label="Plus">+</button>
     </div>
+    <label class="check">
+      <input type="checkbox" bind:checked={cfg.library.announce_ready} />
+      <span>Annoncer « Film prêt » à la fin d'un téléchargement</span>
+    </label>
   {/if}
 </Window>
 

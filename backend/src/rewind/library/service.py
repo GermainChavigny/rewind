@@ -61,7 +61,12 @@ class LibraryService:
             slots=lib.download_slots,
         )
         self.series = SeriesManager(
-            self.db, self.worker, self.posters_dir, tmdb=self.tmdb, indexers=self.indexers
+            self.db,
+            self.worker,
+            self.posters_dir,
+            tmdb=self.tmdb,
+            indexers=self.indexers,
+            media_dir=self.media_dir,
         )
 
     @property
@@ -119,6 +124,7 @@ class LibraryService:
             "search": bool(self.config.indexers) and TorrentClient.available(),
             "series": bool(self.config.indexers) and self.tmdb().available(),
             "advisor": adv.Advisor(self.config.advisor, self.ctx.http).available(),
+            "announce_ready": self.config.library.announce_ready,
         }
 
     # --- catalog ----------------------------------------------------------------------

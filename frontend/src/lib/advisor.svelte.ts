@@ -31,7 +31,7 @@ export interface Criterion {
 export const CRITERIA: Criterion[] = [
   { key: 'mood', options: ['Any', 'Relax', 'Think', 'Laugh', 'Cry', 'Adrenaline', 'Mystery', 'Romance', 'Dark'] },
   { key: 'pace', options: ['Any', 'Fun', 'Serious', 'Epic', 'Weird', 'Cozy', 'Tense'] },
-  { key: 'era', options: ['Any', '< 70s', '70s', '80s', '90s', '2000s', '2010+'] },
+  { key: 'era', options: ['Any', '< 70s', '70s', '80s', '90s', '2000s', '2010s', '2020s', 'Recent'] },
   { key: 'scale', options: ['Any', 'Blockbuster', 'Mid-budget', 'Indie'] },
   { key: 'rating', options: ['Any', 'Must watch', 'Great', 'Hidden gem'] },
   { key: 'length', options: ['Any', '< 90 min', '90–120 min', '> 120 min'] },

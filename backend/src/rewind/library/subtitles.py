@@ -83,6 +83,7 @@ class OpenSubtitles:
             json={"username": self.username, "password": self.password},
             headers=self._headers(),
             timeout=10,
+            follow_redirects=True,
         )
         resp.raise_for_status()
         self._token = resp.json().get("token")
@@ -143,8 +144,13 @@ class OpenSubtitles:
                 params["year"] = year
         elif not movie_hash:
             return None
+        # OpenSubtitles answers 301 to a query whose parameters are not sorted.
         resp = self.http.get(
-            f"{self.BASE}/subtitles", params=params, headers=self._headers(), timeout=10
+            f"{self.BASE}/subtitles",
+            params=sorted(params.items()),
+            headers=self._headers(),
+            timeout=10,
+            follow_redirects=True,
         )
         resp.raise_for_status()
         items = resp.json().get("data") or []
@@ -162,12 +168,13 @@ class OpenSubtitles:
             json={"file_id": file_id},
             headers=self._headers(auth=True),
             timeout=10,
+            follow_redirects=True,
         )
         resp.raise_for_status()
         link = resp.json().get("link")
         if not link:
             return None
-        srt = self.http.get(link, timeout=20)
+        srt = self.http.get(link, timeout=20, follow_redirects=True)
         srt.raise_for_status()
         return srt.content
 

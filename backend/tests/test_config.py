@@ -60,6 +60,30 @@ def test_mask_and_restore_secrets():
     assert restore_secrets(Config.model_validate(shown), old).tmdb.api_key == "changed"
 
 
+def test_list_secrets_follow_their_item():
+    """Removing or adding a provider above another keeps each key with its own."""
+    old = Config()
+    old.advisor = [
+        AdvisorProvider(name="Gemini", kind="gemini", api_key="g-secret", model="m"),
+        AdvisorProvider(name="Groq", base_url="https://groq", api_key="q-secret", model="m"),
+    ]
+    shown = masked(old)
+    del shown["advisor"][0]  # "Retirer" on Gemini
+    new = restore_secrets(Config.model_validate(shown), old)
+    assert [p.api_key for p in new.advisor] == ["q-secret"]
+
+    shown = masked(old)
+    shown["advisor"].reverse()
+    shown["advisor"].insert(0, {"name": "Mine", "base_url": "https://x", "model": "m"})
+    new = restore_secrets(Config.model_validate(shown), old)
+    assert [p.api_key for p in new.advisor] == ["", "q-secret", "g-secret"]
+
+    shown = masked(old)
+    shown["advisor"][1]["name"] = "Groq fast"  # renamed in place
+    new = restore_secrets(Config.model_validate(shown), old)
+    assert new.advisor[1].api_key == "q-secret"
+
+
 def test_old_image_logos_are_dropped():
     old = {"id": "news", "name": "News", "logo": "custom:newsTV.png", "show_name": True}
     assert Channel.model_validate(old).logo_style == 1

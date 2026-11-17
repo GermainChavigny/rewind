@@ -61,8 +61,10 @@ def apply_config(request: Request, old: Config, new: Config) -> None:
         else:
             pending.add("display")
     state.library.apply(old)
-    # The TV page reloads channels, keymap, alarm, weather… (no restart).
+    # The TV page reloads channels, keymap, alarm, weather… (no restart), and
+    # the phone remotes their channel names and keys.
     state.events.publish({"type": "config"})
+    state.remote_events.publish({"type": "config"})
 
 
 @router.get("/schema")

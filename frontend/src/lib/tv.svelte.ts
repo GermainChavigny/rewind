@@ -133,7 +133,9 @@ class Tv {
       return;
     }
     void this.refreshWeather();
+    // Search, series and Advisor buttons follow the admin at once.
     if (this.modules.library && !hadLibrary) void library.init().catch(() => {});
+    else if (this.modules.library) void library.refreshFeatures();
     // Set up from the phone: the QR code has done its job.
     if (!this.firstRun && this.overlay === 'setup') this.overlay = null;
     if (!before) return;
@@ -516,7 +518,8 @@ class Tv {
 
   /**
    * Progressive alarm: the chime fades in (a safety net if the video is
-   * silent), then the alarm channel fades in. Either one may be missing.
+   * silent), and the alarm channel fades in, each after its own delay.
+   * Either one may be missing.
    */
   async ring(): Promise<void> {
     const cfg = this.ui!.alarm;
@@ -530,17 +533,22 @@ class Tv {
     this.youtube?.setVolume(0);
 
     const chime = chimeId ? chimeAudio(chimeId) : null;
+    const soundDelay = cfg.sound_delay_s ?? 0;
+    let chimeStarted = false;
     if (chime) {
       chime.loop = true;
       chime.volume = 0;
-      chime.play().catch(() => {});
     }
     const ramp = (elapsed: number, over: number) => (over > 0 ? Math.min(1, elapsed / over) : 1);
     const start = Date.now();
     const tick = setInterval(() => {
       const elapsed = (Date.now() - start) / 1000;
       if (elapsed >= cfg.max_duration_s) return this.stopAlarm();
-      if (chime) chime.volume = ramp(elapsed, cfg.sound_ramp_s);
+      if (chime && elapsed >= soundDelay) {
+        if (!chimeStarted) chime.play().catch(() => {});
+        chimeStarted = true;
+        chime.volume = ramp(elapsed - soundDelay, cfg.sound_ramp_s);
+      }
       if (number && elapsed >= cfg.video_delay_s) {
         this.youtube?.setVolume(ramp(elapsed - cfg.video_delay_s, cfg.video_ramp_s) * target);
       }

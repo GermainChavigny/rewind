@@ -59,7 +59,10 @@
 
   <p class="sentence">
     À l'heure dite, la télé s'allume.
-    {#if hasChime}La sonnerie monte en <strong>{duration(a.sound_ramp_s)}</strong>.{/if}
+    {#if hasChime}
+      La sonnerie {#if a.sound_delay_s}démarre après <strong>{duration(a.sound_delay_s)}</strong> et{/if} monte en
+      <strong>{duration(a.sound_ramp_s)}</strong>.
+    {/if}
     {#if alarmChannel}
       « {alarmChannel.name} » arrive après <strong>{duration(a.video_delay_s)}</strong> et monte en
       <strong>{duration(a.video_ramp_s)}</strong>.
@@ -71,7 +74,11 @@
     {#if hasChime}
       <div class="track">
         <span class="t-label">Sonnerie</span>
-        <span class="lane"><span class="ramp sound" style:width={pct(a.sound_ramp_s)}></span><span class="full sound"></span></span>
+        <span class="lane">
+          <span class="wait" style:width={pct(a.sound_delay_s)}></span>
+          <span class="ramp sound" style:width={pct(a.sound_ramp_s)}></span>
+          <span class="full sound"></span>
+        </span>
       </div>
     {/if}
     {#if alarmChannel}
@@ -124,6 +131,8 @@
   </div>
 
   {#if hasChime}
+    <label><span>La sonnerie démarre après : {duration(a.sound_delay_s)}</span>
+      <input type="range" min="0" max="600" step="10" bind:value={a.sound_delay_s} /></label>
     <label><span>Montée de la sonnerie : {duration(a.sound_ramp_s)}</span>
       <input type="range" min="0" max="120" step="5" bind:value={a.sound_ramp_s} /></label>
   {/if}

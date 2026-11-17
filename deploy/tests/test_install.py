@@ -22,7 +22,10 @@ REAL_PYTHON = shutil.which("python3")
 STUBS = {
     # Root commands just run (everything stays inside the temporary tree).
     "sudo": 'if [ "$1" = -v ] || [ "$1" = -n ]; then exit 0; fi; exec "$@"',
-    "apt-get": 'echo "apt-get $*" >> "$STUB_LOG"',
+    # Installing python3 puts $LATE_PYTHON in place (a system that had no Python).
+    "apt-get": 'echo "apt-get $*" >> "$STUB_LOG"; '
+    'if [ -n "$LATE_PYTHON" ] && [[ " $* " == *" python3 "* ]]; then '
+    'ln -sf "$(dirname "$0")/python3" "$LATE_PYTHON"; fi',
     # Starting Jackett the first time makes it write its settings (key, port).
     "systemctl": 'echo "systemctl $*" >> "$STUB_LOG"; '
     'if [ "$*" = "--user start jackett.service" ] && [ -n "$JACKETT_FIRST_RUN" ] '
@@ -146,7 +149,7 @@ class Box:
             json.dumps({"assets": [{"name": name, "browser_download_url": url}]})
         )
 
-    def run(self, *args: str, script: Path | None = None, check: bool = True):
+    def run(self, *args: str, script: Path | None = None, check: bool = True, **extra: str):
         env = {
             "PATH": f"{self.bin}:/usr/bin:/bin",
             "HOME": str(self.home),
@@ -160,6 +163,7 @@ class Box:
             "MISSING_PKGS": self.missing,
             "JACKETT_FIRST_RUN": "1",
             "REWIND_JACKETT_WAIT": "1",
+            **extra,
         }
         proc = subprocess.run(
             ["bash", str(script or INSTALL), *args],
@@ -215,6 +219,20 @@ def test_fresh_install_sets_up_the_kiosk_service():
         assert "systemctl --user enable --quiet rewind.service" in calls
         assert f"loginctl enable-linger {user}" in calls
         assert "sudo reboot" in out and "/admin/" in out
+    finally:
+        box.cleanup()
+
+
+def test_a_system_without_python_gets_it_first():
+    box = Box()
+    try:
+        late = box.bin / "python3-late"
+        box.run("install", "--from", str(box.release("0.5.0")), "--no-ublock", "--no-jackett",
+                REWIND_PYTHON=str(late), LATE_PYTHON=str(late))  # fmt: skip
+        assert box.version() == "0.5.0"
+        first = box.calls().splitlines()
+        installs = [c for c in first if c.startswith("apt-get install")]
+        assert installs[0].endswith("--no-install-recommends python3")
     finally:
         box.cleanup()
 

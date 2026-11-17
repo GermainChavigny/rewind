@@ -8,6 +8,7 @@ becomes an AdvisorError with a message that can be shown on screen.
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import re
@@ -92,12 +93,21 @@ class _Transient(Exception):
     """Overload / network: retry, then move on to the next provider."""
 
 
+def _criterion(key: str, value: str) -> str:
+    """A criterion as the model should read it: "Recent" becomes actual years
+    (models do not know today's date)."""
+    if key == "era" and value == "Recent":
+        year = datetime.date.today().year
+        return f"recent, released {year - 2}–{year}"
+    return value
+
+
 def build_prompt(
     criteria: dict, excluded: list[str], keywords: str = "", kind: str = "movie", lang: str = "fr"
 ) -> str:
     series = kind == "series"
     lines = [
-        f"{label}: {criteria[key]}"
+        f"{label}: {_criterion(key, criteria[key])}"
         for key, label in CRITERIA.items()
         if criteria.get(key) and criteria[key] != "Any"
     ]

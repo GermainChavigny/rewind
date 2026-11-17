@@ -176,8 +176,25 @@ check_system() {
   command -v apt-get >/dev/null || die "apt not found: Debian 13 or Raspberry Pi OS (64-bit) is required"
   local arch; arch="$(dpkg --print-architecture)"
   case "$arch" in amd64|arm64) ;; *) die "unsupported architecture $arch (amd64 or arm64)";; esac
+}
+
+# Checked once the system packages are in (python3 is one of them).
+check_python() {
   "$PYTHON" -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null ||
     die "Python 3.11+ is required (Debian 13 / Raspberry Pi OS trixie)"
+}
+
+# What the installer itself needs before it can download a release: Python
+# and curl or wget. A minimal system may have neither: install them first.
+bootstrap() {
+  local need=()
+  command -v "$PYTHON" >/dev/null || need+=(python3)
+  command -v curl >/dev/null || command -v wget >/dev/null || need+=(wget)
+  [ ${#need[@]} -eq 0 ] && return
+  step "Installing ${need[*]}"
+  root env DEBIAN_FRONTEND=noninteractive apt-get update -q
+  root env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends "${need[@]}" ||
+    die "cannot install ${need[*]} (sudo apt install ${need[*]})"
 }
 
 wanted_packages() {
@@ -445,16 +462,18 @@ trap 'rm -rf "$WORK"' EXIT
 
 cmd_install() {
   check_system
+  if [ "$AS_ROOT" = 0 ]; then
+    info "Some steps need administrator rights: sudo will ask for your password."
+    sudo -v || die "sudo is required (or run as root with --user NAME)"
+  fi
+  bootstrap
   get_release
   local old; old="$(current_version)"
   [ -n "$old" ] && info "REWIND $old is installed: it will be replaced by $NEW_VERSION"
   local mode; mode="$( [ -f "$STATE_DIR/kiosk" ] && [ "$KIOSK" = auto ] && kiosk_mode || detect_kiosk)"
   [ "$JACKETT" = 1 ] && [ ! -f "$UNIT_DIR/$JACKETT_UNIT" ] && WITH_JACKETT_DEPS=1
-  if [ "$AS_ROOT" = 0 ]; then
-    info "Some steps need administrator rights: sudo will ask for your password."
-    sudo -v || die "sudo is required (or run as root with --user NAME)"
-  fi
   install_packages
+  check_python
   setup_system "$mode"
   if [ -n "${GITHUB_TOKEN:-}" ]; then
     # Private repository (before the public release): updates need the token too.
@@ -502,6 +521,7 @@ cmd_update() {
       die "new system packages needed ($missing): run $PREFIX/install.sh update on the TV"
     fi
   fi
+  check_python
   state running "install"
   build_release
   activate_release "$REL"

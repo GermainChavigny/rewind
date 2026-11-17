@@ -23,6 +23,7 @@ export interface UiSettings {
   keymap: Keymap;
   alarm: {
     step_minutes: number;
+    sound_delay_s: number;
     sound_ramp_s: number;
     video_delay_s: number;
     video_ramp_s: number;
@@ -161,6 +162,8 @@ export interface EpisodeView {
   position: number;
   duration: number;
   watched: boolean;
+  /** Bytes on disk, once ready. */
+  size: number | null;
 }
 
 export interface SeasonView {
@@ -184,6 +187,8 @@ export interface LibraryFeatures {
   search: boolean;
   series: boolean;
   advisor: boolean;
+  /** Say "movie ready" when a download is finished (admin setting). */
+  announce_ready: boolean;
 }
 
 export type ProbeState = 'reachable' | 'unreachable' | 'pending' | 'unknown';

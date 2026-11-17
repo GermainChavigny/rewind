@@ -12,19 +12,30 @@
 
 ## Feedback backlog
 
-From the first install by a friend (2026-11-14). Not started.
+From the first install by a friend (2026-11-14). Done 2026-11-17, to validate.
 
-- [ ] Install: install missing dependencies automatically (Python?).
-- [ ] Admin changes not live: the movie/series buttons in search and the
-      Advisor button only show up after a page refresh.
-- [ ] Series: show the size of each episode?
-- [ ] The Groq key seemed to have disappeared and had to be entered again.
-- [ ] "Movie ready" announcement: off by default, can be turned on in the admin.
-- [ ] Subtitles: the download failed for "Tenet". Check whether it is that
-      movie or subtitle downloads in general.
-- [ ] Advisor: add more recent release periods.
-- [ ] Alarm: allow delaying when the ringing starts.
-- [ ] Remote: hold the brightness or volume key to repeat it, instead of
-      tapping many times.
-- [ ] Virtual remote: refresh the channel buttons when the channels change
+- [x] Install: install missing dependencies automatically (Python?).
+      `install.sh` checked Python 3.11 before installing any package; it now
+      installs python3 (and wget when there is no curl/wget) first, and checks
+      the version once the packages are in.
+- [x] Admin changes not live: the movie/series buttons in search and the
+      Advisor button only show up after a page refresh. The TV reloaded its
+      modules but not the library features.
+- [x] Series: show the size of each episode (ready episodes, detail panel).
+- [x] The Groq key seemed to have disappeared and had to be entered again.
+      Likely cause: masked keys in lists were restored by position, so removing
+      or adding a provider above Groq gave it another slot's key (or none).
+      They are now matched by name / kind / address.
+- [x] "Movie ready" announcement: off by default, can be turned on in the
+      admin (Vidéothèque).
+- [x] Subtitles: the download failed for "Tenet". Every OpenSubtitles download
+      failed: the API answers 301 to unsorted query parameters and httpx does
+      not follow redirects (v1's requests did). Movies with embedded subtitles
+      hid it.
+- [x] Advisor: more recent release periods (2010s, 2020s, "Récents" = the last
+      two years).
+- [x] Alarm: delay when the chime starts ("La sonnerie démarre après").
+- [x] Remote: hold the brightness or volume key to repeat it (phone remote;
+      the USB remote relies on the keyboard auto-repeat).
+- [x] Virtual remote: refresh the channel buttons when the channels change
       in the admin.

@@ -102,6 +102,7 @@ class WeatherConfig(_Model):
 
 class AlarmConfig(_Model):
     step_minutes: int = Field(default=10, ge=1, le=60)
+    sound_delay_s: int = Field(default=0, ge=0, le=900)  # before the chime starts
     sound_ramp_s: int = 30  # alarm sound volume 0 → 1
     video_delay_s: int = 20  # before the alarm channel starts fading in
     video_ramp_s: int = 15
@@ -141,6 +142,8 @@ class LibraryConfig(_Model):
     download_slots: int = Field(default=3, ge=1, le=10)
     # BitTorrent listen port; the magnet probe uses port + 8.
     torrent_port: int = Field(default=6891, ge=1024, le=65000)
+    # The TV says "Film prêt" when a movie download is finished.
+    announce_ready: bool = False
 
 
 class TmdbConfig(_Model):
@@ -286,11 +289,36 @@ def restore_secrets(new: Config, old: Config) -> Config:
                 walk(value, old_value)
             elif isinstance(value, list) and value and isinstance(value[0], BaseModel):
                 olds = old_value if isinstance(old_value, list) else []
-                for i, item in enumerate(value):
-                    walk(item, olds[i] if i < len(olds) else None)
+                for item, match in zip(value, _match_items(value, olds), strict=True):
+                    walk(item, match)
 
     walk(new, old)
     return new
+
+
+_IDENTITY = ("name", "kind", "url", "base_url")
+
+
+def _identity(item: BaseModel) -> tuple:
+    return tuple(getattr(item, f, None) for f in _IDENTITY)
+
+
+def _match_items(news: list[BaseModel], olds: list[BaseModel]) -> list[BaseModel | None]:
+    """The stored item each edited list item comes from: the same provider or
+    indexer (name, kind, address), wherever it moved after a removal or a new
+    entry above it; else the one at the same place (e.g. renamed)."""
+    free = list(range(len(olds)))
+    out: list[BaseModel | None] = [None] * len(news)
+    for i, item in enumerate(news):
+        j = next((j for j in free if _identity(olds[j]) == _identity(item)), None)
+        if j is not None:
+            free.remove(j)
+            out[i] = olds[j]
+    for i, _ in enumerate(news):
+        if out[i] is None and i in free:
+            free.remove(i)
+            out[i] = olds[i]
+    return out
 
 
 # --- Storage --------------------------------------------------------------------

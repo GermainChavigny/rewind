@@ -35,8 +35,10 @@ class SeriesManager:
         posters_dir: Path,
         tmdb: Callable[[], Tmdb],
         indexers: Callable[[], Indexers],
+        media_dir: Path | None = None,
     ):
         self.db = db
+        self.media_dir = media_dir
         self.worker = worker
         self.posters_dir = posters_dir
         # Factories: the clients follow the live config (keys can change any time).
@@ -280,6 +282,7 @@ class SeriesManager:
             state, phase, progress = "missing", None, 0.0
             position = duration = 0.0
             watched = False
+            size = None
             if item:
                 position, duration = item.get("position") or 0, item.get("duration") or 0
                 watched = bool(item.get("watched")) or (
@@ -289,6 +292,7 @@ class SeriesManager:
                 st = item["status"]
                 if st == "ready":
                     state, progress = "ready", 1.0
+                    size = self._file_size(item.get("file"))
                 elif st == "error":
                     state = "error"
                 elif st == "transcoding":
@@ -312,6 +316,16 @@ class SeriesManager:
                     "position": round(position, 1),
                     "duration": round(duration, 1),
                     "watched": watched,
+                    "size": size,
                 }
             )
         return {"season": season, "episodes": out, "notice": self.notice(show_id)}
+
+    def _file_size(self, name: str | None) -> int | None:
+        """Bytes of a ready episode's video on disk (shown on the series screen)."""
+        if not name or self.media_dir is None:
+            return None
+        try:
+            return (self.media_dir / name).stat().st_size
+        except OSError:
+            return None

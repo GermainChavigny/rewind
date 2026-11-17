@@ -59,21 +59,30 @@
 
   onMount(async () => {
     try {
-      const data = await (await fetch('/api/remote/layout')).json();
-      available = [...data.actions, ...data.extra].filter((a: string) => a in LOOKS);
-      layouts = {
-        tv: sanitize(data.layouts.tv, actionsFor('tv', available), 'tv'),
-        movies: sanitize(data.layouts.movies, actionsFor('movies', available), 'movies'),
-      };
-      const list = await (await fetch('/api/channels')).json();
-      channels = Object.fromEntries(list.map((c: { number: number; name: string }) => [c.number, c]));
+      await loadSetup();
     } catch {
       say('La télé ne répond pas.');
     }
     follow();
   });
 
-  onDestroy(() => events?.close());
+  /** Keys and channel names: at start, and again after a change in the admin. */
+  async function loadSetup() {
+    const data = await (await fetch('/api/remote/layout')).json();
+    available = [...data.actions, ...data.extra].filter((a: string) => a in LOOKS);
+    if (!editing)
+      layouts = {
+        tv: sanitize(data.layouts.tv, actionsFor('tv', available), 'tv'),
+        movies: sanitize(data.layouts.movies, actionsFor('movies', available), 'movies'),
+      };
+    const list = await (await fetch('/api/channels')).json();
+    channels = Object.fromEntries(list.map((c: { number: number; name: string }) => [c.number, c]));
+  }
+
+  onDestroy(() => {
+    events?.close();
+    stopRepeat();
+  });
 
   /** Follows what the TV shows (EventSource reconnects by itself). */
   function follow() {
@@ -89,6 +98,8 @@
         setMode(event.mode ?? 'tv');
         keyboard = event.keyboard ?? null;
         if (keyboard && document.activeElement !== field) typed = keyboard.text;
+      } else if (event.type === 'config') {
+        void loadSetup().catch(() => {});
       } else if (event.type === 'error' && event.message === 'shutdown_failed') {
         say("L'ordinateur a refusé de s'éteindre.");
       }
@@ -133,6 +144,37 @@
       say('La télé ne répond pas.');
       return false;
     }
+  }
+
+  // Held down, these keys repeat (like a real remote) instead of needing many taps.
+  const REPEATABLE = new Set(['volume_up', 'volume_down', 'darker', 'brighter']);
+  const REPEAT_DELAY_MS = 450;
+  const REPEAT_EVERY_MS = 150;
+  let repeatTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function keyDown(action: string) {
+    pressed = action;
+    if (!REPEATABLE.has(action)) return;
+    press(action);
+    const again = () => {
+      press(action);
+      repeatTimer = setTimeout(again, REPEAT_EVERY_MS);
+    };
+    repeatTimer = setTimeout(again, REPEAT_DELAY_MS);
+  }
+
+  function keyUp(action: string) {
+    const held = stopRepeat();
+    if (pressed === action && !held) press(action);
+    pressed = null;
+  }
+
+  /** Ends a held key; true if it was a repeating one (already sent). */
+  function stopRepeat(): boolean {
+    const held = repeatTimer !== null;
+    if (repeatTimer) clearTimeout(repeatTimer);
+    repeatTimer = null;
+    return held;
   }
 
   function press(action: string) {
@@ -377,11 +419,12 @@
                   class="key {look.tone}"
                   class:down={pressed === action}
                   class:lifted={drag?.action === action}
-                  onpointerdown={(e) => (editing ? dragStart(e, action) : (pressed = action))}
+                  onpointerdown={(e) => (editing ? dragStart(e, action) : keyDown(action))}
                   onpointermove={dragMove}
-                  onpointerup={(e) => (editing ? dragEnd(e) : ((pressed = null), press(action)))}
-                  onpointercancel={() => ((pressed = null), (drag = null))}
-                  onpointerleave={() => !editing && (pressed = null)}
+                  onpointerup={(e) => (editing ? dragEnd(e) : keyUp(action))}
+                  onpointercancel={() => (stopRepeat(), (pressed = null), (drag = null))}
+                  onpointerleave={() => !editing && (stopRepeat(), (pressed = null))}
+                  oncontextmenu={(e) => e.preventDefault()}
                   aria-label={ch ? `${look.label} ${ch.name}` : look.caption ? `${look.caption} ${look.label}` : look.label}
                 >
                   {@render face(action)}

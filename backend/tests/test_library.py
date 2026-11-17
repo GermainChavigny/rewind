@@ -98,6 +98,7 @@ def test_search_needs_an_indexer(make_client):
         "search": False,
         "series": False,
         "advisor": False,
+        "announce_ready": False,
     }
 
 
@@ -146,6 +147,19 @@ def test_delete_purges_files_and_episodes(make_client, paths):
     assert not (paths.data / "posters" / "show.jpg").exists()
 
 
+def test_season_view_shows_episode_size(make_client, paths):
+    client = make_client()
+    db = Database(paths.data / "rewind.db")
+    (paths.media / "ep.mp4").write_bytes(b"x" * 1234)
+    db.upsert_media({"id": "show", "kind": "series", "title": "Show", "status": "ready"})
+    db.upsert_media({"id": "show-s01e01", "kind": "episode", "parent_id": "show", "season": 1,
+                     "episode": 1, "title": "E1", "status": "ready", "file": "ep.mp4"})  # fmt: skip
+    db.upsert_media({"id": "show-s01e02", "kind": "episode", "parent_id": "show", "season": 1,
+                     "episode": 2, "title": "E2", "status": "downloading"})  # fmt: skip
+    eps = client.get("/api/series/show/season/1").json()["episodes"]
+    assert [e["size"] for e in eps] == [1234, None]
+
+
 def test_delete_never_leaves_the_media_dir(make_client, paths, tmp_path):
     client = make_client()
     outside = tmp_path / "precious.mp4"
@@ -180,6 +194,8 @@ def test_advisor_prompt_and_parse():
     text = '```json\n{"recommendations": [{"title": "A", "year": 1990}, {"x": 1}]}\n```'
     assert adv.parse(text) == [{"title": "A", "year": 1990}]
     assert adv.clip("mot " * 60).endswith("…")
+    year = __import__("datetime").date.today().year
+    assert f"Era: recent, released {year - 2}–{year}" in adv.build_prompt({"era": "Recent"}, [])
 
 
 def test_advisor_falls_back_to_next_provider(make_client, web, paths):
@@ -339,3 +355,23 @@ def test_local_advisor_needs_no_key():
     remote = AdvisorProvider(name="X", kind="openai", base_url="https://api.x.ai/v1", model="m")
     assert Provider(local, None).available()
     assert not Provider(remote, None).available()
+
+
+def test_opensubtitles_query_is_sorted(web, tmp_path):
+    """OpenSubtitles redirects an unsorted query (301): the search must not depend on it."""
+    from rewind.library.subtitles import OpenSubtitles
+
+    web.routes["https://api.opensubtitles.com/api/v1/login"] = httpx.Response(
+        200, json={"token": "t"}
+    )
+    web.routes["https://api.opensubtitles.com/api/v1/subtitles"] = httpx.Response(
+        200, json={"data": [{"attributes": {"files": [{"file_id": 7}]}}]}
+    )
+    subs = OpenSubtitles(
+        "k", "u", "p", http=httpx.Client(transport=httpx.MockTransport(web.handler))
+    )
+    subs._login()
+    assert subs._best("fr", "abc", "tt6723592", None, "Tenet", 2020, None, None) == 7
+    query = web.calls[-1].url.query.decode()
+    keys = [kv.split("=")[0] for kv in query.split("&")]
+    assert keys == sorted(keys) and "imdb_id=6723592" in query

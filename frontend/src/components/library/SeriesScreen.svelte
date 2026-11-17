@@ -8,7 +8,7 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { api, type EpisodeView, type SeasonView } from '../../lib/api';
   import { t } from '../../lib/i18n';
-  import { episodeCode, formatProgress, library } from '../../lib/library.svelte';
+  import { episodeCode, formatProgress, formatSize, library } from '../../lib/library.svelte';
   import { reveal } from '../../lib/sound';
   import { tv } from '../../lib/tv.svelte';
   import CrtHeader from '../CrtHeader.svelte';
@@ -197,7 +197,13 @@
           <div class="d-state {seen ? 'watched' : 'ready'}">
             {ICONS[seen ? 'watched' : 'ready']} {t(`series.state.${seen ? 'watched' : 'ready'}`)}
           </div>
-          {#if current.duration}<div class="d-time"><span class="no-wrap">{formatProgress(current.position, current.duration)}</span></div>{/if}
+          {#if current.duration || current.size}
+            <div class="d-time">
+              {#if current.duration}<span class="no-wrap">{formatProgress(current.position, current.duration)}</span>{/if}
+              {#if current.duration && current.size}·{/if}
+              {#if current.size}<span class="no-wrap">{formatSize(current.size)}</span>{/if}
+            </div>
+          {/if}
           <Bar ratio={current.duration ? current.position / current.duration : 0} height={14} />
         {:else}
           <div class="d-state {st}">{ICONS[st]} {t(`series.state.${st}`)}</div>

@@ -48,6 +48,12 @@ export function formatProgress(position: number, duration: number): string {
   return duration >= 3600 ? `${hm(position)} / ${hm(duration)}` : `${min(position)} / ${min(duration)} min`;
 }
 
+/** A file size for the TV: "1,4 Go", or "350 Mo" under a gigabyte. */
+export function formatSize(bytes: number): string {
+  if (bytes >= 1e9) return t('lib.size_gb', { size: (bytes / 1e9).toFixed(1).replace('.', ',') });
+  return t('lib.size_mb', { size: String(Math.max(1, Math.round(bytes / 1e6))) });
+}
+
 /** Status label and progress of an unfinished item (a library row or a job). */
 export function statusInfo(m: { status: string; progress?: Job['progress']; error?: string | null }): {
   label: string;
@@ -78,7 +84,7 @@ export function statusInfo(m: { status: string; progress?: Job['progress']; erro
 class Library {
   items = $state<Media[]>([]);
   jobs = $state<Record<string, Job>>({});
-  features = $state<LibraryFeatures>({ search: false, series: false, advisor: false });
+  features = $state<LibraryFeatures>({ search: false, series: false, advisor: false, announce_ready: false });
   freeBytes = $state<number | null>(null);
 
   private polling: ReturnType<typeof setInterval> | null = null;
@@ -86,8 +92,13 @@ class Library {
   /** Deleted by the user: their disappearance is not "movie ready". */
   private ignored = new Set<string>();
 
-  async init(): Promise<void> {
+  /** What is configured (search, series, Advisor): after an admin change too. */
+  async refreshFeatures(): Promise<void> {
     this.features = await api.libraryFeatures().catch(() => this.features);
+  }
+
+  async init(): Promise<void> {
+    await this.refreshFeatures();
     await this.load();
     this.watchJobs(); // show downloads resumed after a reboot
   }
@@ -176,7 +187,7 @@ class Library {
       for (const [id, job] of Object.entries(this.jobs)) {
         if (jobs[id] || this.ignored.has(id) || job.status === 'error') continue;
         // A known job vanished: it is ready. Series jobs stay silent (a pack = many episodes).
-        if (job.kind === 'movie') announce(t('lib.voice_ready'));
+        if (job.kind === 'movie' && this.features.announce_ready) announce(t('lib.voice_ready'));
       }
       for (const id of this.ignored) if (!jobs[id]) this.ignored.delete(id);
       this.jobs = jobs;
