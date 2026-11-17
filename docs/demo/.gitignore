@@ -1,0 +1,8 @@
+node_modules/
+out/
+captures/
+# Downloaded / copied by `npm run prepare-assets` (see README.md).
+public/fonts/
+public/background.mp3
+public/cursors/
+public/sfx/bells.mp3
