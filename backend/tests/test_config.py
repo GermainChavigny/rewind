@@ -122,7 +122,7 @@ def test_subtitle_languages_default_to_the_interface_language():
 
     # Nobody's personal choice by default: the interface language.
     assert Config().opensubtitles.languages == []
-    assert Config().subtitle_languages == ["fr"]
+    assert Config().subtitle_languages == ["en"]
     assert Config(general=GeneralConfig(language="pt-BR")).subtitle_languages == ["pt"]
     assert Config(general=GeneralConfig(language="xx")).subtitle_languages == []
     cfg = Config()
@@ -147,3 +147,20 @@ def test_admin_knows_the_same_subtitle_languages():
     block = re.search(r"SUBTITLE_CODES = \[(.*?)\]", helpers.read_text(), re.S)
     assert block, "SUBTITLE_CODES not found in admin/helpers.ts"
     assert sorted(re.findall(r"'([a-z]{2})'", block.group(1))) == sorted(SUBTITLE_LANGUAGES)
+
+
+def test_movie_info_follows_the_interface_language():
+    from rewind.config import Config, GeneralConfig, TmdbConfig
+
+    assert Config().tmdb_language == "en-US"
+    assert Config(general=GeneralConfig(language="fr")).tmdb_language == "fr-FR"
+    assert Config(general=GeneralConfig(language="de")).tmdb_language == "de"
+    assert Config(tmdb=TmdbConfig(language="es-ES")).tmdb_language == "es-ES"
+
+
+def test_check_messages_follow_the_interface_language():
+    from rewind.checks import msg
+
+    assert msg("en", "no_key") == "No key."
+    assert msg("fr", "no_key") == "Aucune clé."
+    assert msg("de", "error", code=500) == "Error 500."

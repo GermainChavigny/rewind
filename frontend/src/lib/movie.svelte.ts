@@ -13,6 +13,7 @@
 
 import { api, mediaUrl, type Media } from './api';
 import { isWatched, library, WATCHED_THRESHOLD } from './library.svelte';
+import { language } from './i18n';
 
 const SAVE_EVERY_MS = 2500;
 /** Subtitle languages, each in its own language (as on a DVD menu). */
@@ -217,12 +218,13 @@ class MoviePlayer {
     this.offsets = { ...(entry.subtitle_offsets ?? {}) };
     this.applied = {};
     const saved = entry.subtitle_mode;
-    // Saved choice if still valid, else French first, else the first language.
+    // Saved choice if still valid, else the interface language, else the first language.
+    const ui = language();
     this.subMode =
       saved && (saved === 'off' || langs.includes(saved))
         ? saved
-        : langs.includes('fr')
-          ? 'fr'
+        : langs.includes(ui)
+          ? ui
           : ((langs[0] as SubMode | undefined) ?? 'off');
     for (const lang of langs) {
       const track = document.createElement('track');

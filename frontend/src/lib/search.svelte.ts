@@ -4,7 +4,7 @@
  */
 
 import { api, ApiError, type MovieResult, type ProbeState, type ShowResult } from './api';
-import { t } from './i18n';
+import { language, t } from './i18n';
 
 export type SearchKind = 'movie' | 'series';
 
@@ -30,7 +30,7 @@ class Search {
       case 'size':
         return list.sort((a, b) => (b.torrent.size ?? 0) - (a.torrent.size ?? 0));
       case 'title':
-        return list.sort((a, b) => a.title.localeCompare(b.title, 'fr', { sensitivity: 'base' }));
+        return list.sort((a, b) => a.title.localeCompare(b.title, language(), { sensitivity: 'base' }));
       default:
         return list.sort((a, b) => a.rank - b.rank);
     }

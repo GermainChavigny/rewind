@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACTION_GROUPS, avOffsetText, duration, keyLabel, playlistId } from './helpers';
+import { actionGroups, avOffsetText, duration, keyLabel, playlistId } from './helpers';
 
 describe('playlistId', () => {
   it('extracts the id from YouTube links', () => {
@@ -15,12 +15,12 @@ describe('playlistId', () => {
 describe('labels', () => {
   it('names special keys', () => {
     expect(keyLabel('ArrowUp')).toBe('↑');
-    expect(keyLabel(' ')).toBe('Espace');
+    expect(keyLabel(' ')).toBe('Space');
     expect(keyLabel('é')).toBe('É');
     expect(keyLabel('F7')).toBe('F7');
   });
   it('covers every remote action once', () => {
-    const ids = ACTION_GROUPS.flatMap((g) => g.actions.map((a) => a.id));
+    const ids = actionGroups().flatMap((g) => g.actions.map((a) => a.id));
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toHaveLength(22);
   });
@@ -28,8 +28,8 @@ describe('labels', () => {
     expect(duration(45)).toBe('45 s');
     expect(duration(120)).toBe('2 min');
     expect(duration(150)).toBe('2 min 30 s');
-    expect(avOffsetText(0)).toContain('synchronisés');
-    expect(avOffsetText(-120)).toBe('Le son est avancé de 120 ms.');
+    expect(avOffsetText(0)).toContain('in sync');
+    expect(avOffsetText(-120)).toBe('The sound is advanced by 120 ms.');
   });
 });
 
@@ -48,9 +48,10 @@ describe('providers and links', () => {
 });
 
 describe('subtitle languages', () => {
-  it('names languages in French and matches typing without accents', async () => {
+  it('names languages in the interface language and matches typing without accents', async () => {
     const { fold, languageName, SUBTITLE_CODES } = await import('./helpers');
-    expect(languageName('en')).toBe('Anglais');
+    expect(languageName('en', 'fr')).toBe('Anglais');
+    expect(languageName('fr')).toBe('French');
     expect(fold('Français')).toBe('francais');
     expect(new Set(SUBTITLE_CODES).size).toBe(SUBTITLE_CODES.length);
   });

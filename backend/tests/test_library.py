@@ -188,7 +188,9 @@ def test_playback_started_and_watched(make_client, paths):
 
 
 def test_advisor_prompt_and_parse():
-    prompt = adv.build_prompt({"mood": "Laugh", "era": "Any"}, ["Heat"], "Bill Murray", "movie")
+    prompt = adv.build_prompt(
+        {"mood": "Laugh", "era": "Any"}, ["Heat"], "Bill Murray", "movie", "fr"
+    )
     assert "Mood: Laugh" in prompt and "Era" not in prompt
     assert "Heat" in prompt and "Bill Murray" in prompt and "French" in prompt
     text = '```json\n{"recommendations": [{"title": "A", "year": 1990}, {"x": 1}]}\n```'

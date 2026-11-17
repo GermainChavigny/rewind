@@ -4,13 +4,14 @@
   picks the first suggestion.
 -->
 <script lang="ts">
+  import { t } from '../../lib/i18n';
   import { fold } from '../helpers';
 
   let {
     value = $bindable(),
     options,
     max = Infinity,
-    placeholder = 'Ajouter…',
+    placeholder = t('admin.tags.add'),
     label,
   }: {
     value: string[];
@@ -61,7 +62,7 @@
       {#each value as id (id)}
         <li class="tag">
           {nameOf(id)}
-          <button class="x" onclick={() => remove(id)} aria-label="Retirer {nameOf(id)}">✕</button>
+          <button class="x" onclick={() => remove(id)} aria-label={t('admin.learn.remove', { key: nameOf(id) })}>✕</button>
         </li>
       {/each}
     </ul>

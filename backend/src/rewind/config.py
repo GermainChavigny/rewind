@@ -37,7 +37,7 @@ class _Model(BaseModel):
 
 
 class GeneralConfig(_Model):
-    language: str = "fr"
+    language: str = "en"  # interface language: "en" or "fr"
     timezone: str | None = None  # None = system timezone
 
 
@@ -148,8 +148,11 @@ class LibraryConfig(_Model):
 
 class TmdbConfig(_Model):
     api_key: str = secret()
-    language: str = "fr-FR"
+    language: str = ""  # e.g. "fr-FR"; empty = the interface language
 
+
+# Interface language → TMDB locale (TMDB wants a region for some languages).
+TMDB_LOCALES = {"en": "en-US", "fr": "fr-FR", "pt": "pt-BR"}
 
 # Subtitle languages that can be chosen (ISO 639-1, all served by OpenSubtitles),
 # with their ISO 639-2 B/T codes, used to recognise the tracks embedded in files.
@@ -243,8 +246,20 @@ class Config(_Model):
         """The chosen subtitle languages, else the interface language."""
         if self.opensubtitles.languages:
             return list(self.opensubtitles.languages)
-        lang = self.general.language.split("-")[0].lower()
+        lang = self.ui_language
         return [lang] if lang in SUBTITLE_LANGUAGES else []
+
+    @property
+    def ui_language(self) -> str:
+        """The interface language as an ISO 639-1 code ("fr-FR" → "fr")."""
+        return self.general.language.split("-")[0].lower() or "en"
+
+    @property
+    def tmdb_language(self) -> str:
+        """Language of the movie info (titles, synopses): set, else the interface one."""
+        if self.tmdb.language:
+            return self.tmdb.language
+        return TMDB_LOCALES.get(self.ui_language, self.ui_language)
 
 
 # --- Secret masking -------------------------------------------------------------

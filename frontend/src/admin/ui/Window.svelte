@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { t } from '../../lib/i18n';
 
   let {
     title,
@@ -30,13 +31,13 @@
     </h2>
     <span class="stripes"></span>
     {#if help}
-      <button class="help" aria-expanded={open} aria-label="Aide" onclick={() => (open = !open)}>?</button>
+      <button class="help" aria-expanded={open} aria-label={t('admin.help')} onclick={() => (open = !open)}>?</button>
     {/if}
   </header>
   {#if help && open}
     <div class="explain">
       {@render help()}
-      <button class="link" onclick={() => (open = false)}>Compris</button>
+      <button class="link" onclick={() => (open = false)}>{t('admin.got_it')}</button>
     </div>
   {/if}
   <div class="body">{@render children()}</div>

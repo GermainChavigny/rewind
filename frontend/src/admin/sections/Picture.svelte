@@ -6,6 +6,7 @@
 <script lang="ts">
   import Glyph from '../../components/Glyph.svelte';
   import { onDestroy, onMount } from 'svelte';
+  import { t } from '../../lib/i18n';
   import { adminApi, type Cfg, type Hardware } from '../api';
   import { avOffsetText, liveAudio } from '../helpers';
   import Window from '../ui/Window.svelte';
@@ -47,7 +48,7 @@
     if (testing) return stopTest();
     const { delivered } = await adminApi.tvEvent('avtest').catch(() => ({ delivered: 0 }));
     if (!delivered) {
-      testNote = "La télé n'est pas connectée : allumez-la sur REWIND.";
+      testNote = t('admin.pic.not_connected');
       return;
     }
     testing = true;
@@ -68,42 +69,36 @@
   });
 </script>
 
-<Window title="Image">
+<Window title={t('admin.pic.title')}>
   {#snippet help()}
-    <p>
-      Les effets cathodiques imitent un vieux téléviseur : lignes de balayage, léger flou, coins arrondis. Sur une vraie
-      télé cathodique, vous pouvez les couper, l'écran s'en charge déjà.
-    </p>
+    <p>{t('admin.pic.help')}</p>
   {/snippet}
   <label class="check">
     <input type="checkbox" bind:checked={cfg.display.crt_effects} />
-    <span>Effets « écran cathodique »</span>
+    <span>{t('admin.pic.crt')}</span>
   </label>
 </Window>
 
-<Window title="Son synchronisé">
+<Window title={t('admin.av.title')}>
   {#snippet help()}
-    <p>
-      Avec certains branchements (adaptateur HDMI → péritel par exemple), l'image arrive en retard sur le son. Pour
-      régler :
-    </p>
+    <p>{t('admin.av.help')}</p>
     <ol>
-      <li>Touchez <strong>Lancer le test</strong> : la télé affiche un flash avec un bip, chaque seconde.</li>
-      <li>Regardez la télé : le bip doit tomber pile sur le flash.</li>
-      <li>Bip <strong>avant</strong> le flash : retardez le son (+). Bip <strong>après</strong> : avancez-le (−).</li>
-      <li>Le changement s'entend tout de suite. Enregistrez quand c'est bon.</li>
+      <li>{@html t('admin.av.help1')}</li>
+      <li>{t('admin.av.help2')}</li>
+      <li>{@html t('admin.av.help3')}</li>
+      <li>{t('admin.av.help4')}</li>
     </ol>
   {/snippet}
 
   <button class="test-btn" class:on={testing} onclick={toggleTest}>
-    {#if testing}<Glyph name="stop" /> Arrêter le test{:else}<Glyph name="play" /> Lancer le test sur la télé{/if}
+    {#if testing}<Glyph name="stop" /> {t('admin.av.stop')}{:else}<Glyph name="play" /> {t('admin.av.start')}{/if}
   </button>
   {#if testNote}<p class="bad">{testNote}</p>{/if}
 
   <div class="offset">
-    <button onclick={() => setOffset(cfg.audio.av_offset_ms - 20)} aria-label="Avancer le son de 20 ms">− 20</button>
+    <button onclick={() => setOffset(cfg.audio.av_offset_ms - 20)} aria-label={t('admin.av.minus')}>− 20</button>
     <strong>{cfg.audio.av_offset_ms > 0 ? '+' : ''}{cfg.audio.av_offset_ms} ms</strong>
-    <button onclick={() => setOffset(cfg.audio.av_offset_ms + 20)} aria-label="Retarder le son de 20 ms">+ 20</button>
+    <button onclick={() => setOffset(cfg.audio.av_offset_ms + 20)} aria-label={t('admin.av.plus')}>+ 20</button>
   </div>
   <input
     type="range"
@@ -112,49 +107,46 @@
     step="10"
     value={cfg.audio.av_offset_ms}
     oninput={(e) => setOffset(Number(e.currentTarget.value))}
-    aria-label="Décalage du son"
+    aria-label={t('admin.av.offset')}
   />
   <p class="sentence">{avOffsetText(cfg.audio.av_offset_ms)}</p>
-  {#if hw && !port}<p class="bad">Aucune sortie son branchée : choisissez-en une dans Branchements.</p>{/if}
+  {#if hw && !port}<p class="bad">{t('admin.av.no_port')}</p>{/if}
 </Window>
 
-<Window title="Branchements">
+<Window title={t('admin.out.title')}>
   {#snippet help()}
-    <p>Les choix viennent du PC de la télé : seules ses vraies sorties sont proposées.</p>
-    <p>
-      Pour une télé cathodique française (PAL), choisissez la définition <strong>720x576</strong>. L'image et le son
-      changent dès l'enregistrement.
-    </p>
+    <p>{t('admin.out.help1')}</p>
+    <p>{@html t('admin.out.help2')}</p>
   {/snippet}
   {#if hwError}
-    <p class="bad">Impossible de lire les sorties du PC.</p>
+    <p class="bad">{t('admin.out.error')}</p>
   {:else if !hw}
-    <p class="muted">Lecture des sorties du PC…</p>
+    <p class="muted">{t('admin.out.loading')}</p>
   {:else}
     <label>
-      <span>Sortie vidéo</span>
+      <span>{t('admin.out.video')}</span>
       <select bind:value={cfg.display.output}>
-        <option value={null}>Automatique</option>
+        <option value={null}>{t('admin.out.auto')}</option>
         {#each hw.displays as d (d.name)}
-          <option value={d.name}>{d.name}{d.connected ? ' — branchée' : ' — rien de branché'}</option>
+          <option value={d.name}>{d.name}{d.connected ? t('admin.out.connected') : t('admin.out.nothing')}</option>
         {/each}
       </select>
     </label>
     <label>
-      <span>Définition</span>
+      <span>{t('admin.out.mode')}</span>
       <select bind:value={cfg.display.mode}>
-        <option value={null}>Automatique</option>
+        <option value={null}>{t('admin.out.auto')}</option>
         {#each modes as m (m)}
-          <option value={m}>{m}{m === '720x576' ? ' — télé cathodique (PAL)' : m === '720x480' ? ' — NTSC' : ''}</option>
+          <option value={m}>{m}{m === '720x576' ? t('admin.out.pal') : m === '720x480' ? ' — NTSC' : ''}</option>
         {/each}
       </select>
     </label>
     <label>
-      <span>Sortie son</span>
+      <span>{t('admin.out.audio')}</span>
       <select bind:value={cfg.audio.output_port}>
-        <option value={null}>Automatique</option>
+        <option value={null}>{t('admin.out.auto')}</option>
         {#each hw.audio as p (p.card + p.name)}
-          <option value={p.name}>{p.description} ({p.card_description}){p.available ? '' : ' — non branchée'}</option>
+          <option value={p.name}>{p.description} ({p.card_description}){p.available ? '' : t('admin.out.unplugged')}</option>
         {/each}
       </select>
     </label>

@@ -7,7 +7,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { api, posterUrl, type Media } from '../../lib/api';
-  import { t } from '../../lib/i18n';
+  import { language, t } from '../../lib/i18n';
   import {
     episodeCode,
     formatProgress,
@@ -42,7 +42,7 @@
   const showTabs = $derived(hasMovies && hasShows);
   const currentTab = $derived(showTabs ? tab : hasShows && !hasMovies ? 'series' : 'movies');
 
-  const byTitle = (a: Media, b: Media) => a.title.localeCompare(b.title, 'fr', { sensitivity: 'base' });
+  const byTitle = (a: Media, b: Media) => a.title.localeCompare(b.title, language(), { sensitivity: 'base' });
 
   const visible = $derived.by(() => {
     if (currentTab === 'series') {

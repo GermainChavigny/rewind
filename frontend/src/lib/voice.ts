@@ -1,13 +1,19 @@
 /**
  * Spoken feedback (alarm). Uses speech synthesis when a voice for the UI
- * language exists, else recorded clips (audio/<lang>/*.mp3, audio/numbers).
+ * language exists, else recorded clips (audio/<lang>/*.mp3, audio/numbers),
+ * which only exist in French for now.
  */
+import { language } from './i18n';
 
 let audio: HTMLAudioElement | null = null;
 
-function frenchVoice(): SpeechSynthesisVoice | undefined {
-  const voices = speechSynthesis.getVoices();
-  return voices.find((v) => v.name === 'Google français') ?? voices.find((v) => v.lang.startsWith('fr'));
+/** Recorded clips: language → folder (the numbers are spoken in French). */
+const CLIPS = new Set(['fr']);
+
+function voiceFor(lang: string): SpeechSynthesisVoice | undefined {
+  const voices = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith(lang));
+  // Google voices sound best in Chromium ("Google français", "Google US English").
+  return voices.find((v) => v.name.startsWith('Google')) ?? voices[0];
 }
 
 function play(src: string, volume: number): Promise<void> {
@@ -22,7 +28,7 @@ function play(src: string, volume: number): Promise<void> {
 }
 
 function speak(text: string, volume: number): boolean {
-  const voice = frenchVoice();
+  const voice = voiceFor(language());
   if (!voice) return false;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -34,13 +40,14 @@ function speak(text: string, volume: number): boolean {
 
 /** "Réveil activé" / "Pas de réveil" / "Film prêt" (recorded clip as a fallback, if any). */
 export function announce(text: string, clip?: string, volume = 0.8): void {
-  if (!speak(text, volume) && clip) void play(`audio/fr/${clip}.mp3`, volume);
+  const lang = language();
+  if (!speak(text, volume) && clip && CLIPS.has(lang)) void play(`audio/${lang}/${clip}.mp3`, volume);
 }
 
 /** Speaks a time like "7:30" (clips fallback: hour then minutes). */
 export async function announceTime(hhmm: string, volume = 0.8): Promise<void> {
   const [h, m] = hhmm.split(':').map(Number);
-  if (speak(`${h}:${String(m).padStart(2, '0')}`, volume)) return;
+  if (speak(`${h}:${String(m).padStart(2, '0')}`, volume) || !CLIPS.has(language())) return;
   await play(`audio/numbers/${h}.wav`, volume);
   if (m > 0) await play(`audio/numbers/${m}.wav`, volume);
 }

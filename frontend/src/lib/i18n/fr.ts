@@ -1,4 +1,4 @@
-/** French UI strings. Keys are English; add a sibling file per language. */
+/** French UI strings of the TV (same keys as en.ts). */
 export default {
   'difficulties.title': 'Technical difficulties',
   'difficulties.standby': 'please stand by',

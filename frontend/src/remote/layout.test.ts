@@ -23,8 +23,8 @@ describe('virtual remote layout', () => {
     expect(MOVIES).not.toContain('channel_1');
     expect(MOVIES).not.toContain('alarm_toggle');
     expect(TV).not.toContain('home');
-    expect(lookOf('alarm_later', 'movies').caption).toBe('Défiler');
-    expect(lookOf('alarm_later', 'tv').caption).toBe('Réveil +');
+    expect(lookOf('alarm_later', 'movies').caption).toBe('Scroll');
+    expect(lookOf('alarm_later', 'tv').caption).toBe('Alarm +');
   });
 
   it('shows the computer power key only when the TV offers it', () => {

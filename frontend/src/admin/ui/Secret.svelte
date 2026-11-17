@@ -6,6 +6,7 @@
 <script lang="ts">
   import Glyph from '../../components/Glyph.svelte';
   import { untrack } from 'svelte';
+  import { t } from '../../lib/i18n';
 
   const MASK = '********';
 
@@ -32,12 +33,12 @@
 </script>
 
 <label>
-  <span>{label}{#if saved}<em> · enregistrée <Glyph name="check" /></em>{/if}</span>
+  <span>{label}{#if saved}<em> · {t('admin.secret.saved')} <Glyph name="check" /></em>{/if}</span>
   <input
     type={password ? 'password' : 'text'}
     value={wasSaved ? text : value}
     oninput={onInput}
-    placeholder={saved ? 'Tapez pour remplacer' : placeholder}
+    placeholder={saved ? t('admin.secret.replace') : placeholder}
     autocapitalize="off"
     autocomplete="off"
     spellcheck="false"

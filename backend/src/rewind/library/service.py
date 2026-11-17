@@ -104,7 +104,7 @@ class LibraryService:
     # --- clients ----------------------------------------------------------------------
 
     def tmdb(self) -> Tmdb:
-        return Tmdb(self.config.tmdb.api_key, self.config.tmdb.language, self.ctx.http)
+        return Tmdb(self.config.tmdb.api_key, self.config.tmdb_language, self.ctx.http)
 
     def indexers(self) -> Indexers:
         return Indexers(self.config.indexers, self.ctx.http)
@@ -273,7 +273,7 @@ class LibraryService:
             raise LibraryError(503, "advisor not configured")
         owned = [i["title"] for i in self.db.list_media() if i["kind"] in ("movie", "series")]
         excluded = sorted({b["title"] for b in self.db.blacklist()} | set(owned))
-        prompt = adv.build_prompt(criteria, excluded, keywords, kind, self.config.general.language)
+        prompt = adv.build_prompt(criteria, excluded, keywords, kind, self.config.ui_language)
         try:
             recs = advisor.recommend(prompt)
         except adv.AdvisorError as err:

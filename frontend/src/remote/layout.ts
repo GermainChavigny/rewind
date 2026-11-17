@@ -1,6 +1,7 @@
 /** Virtual remote: button looks and the grid layouts (tested in layout.test.ts). */
 
 import type { GlyphName } from '../components/Glyph.svelte';
+import { t } from '../lib/i18n';
 
 /**
  * The remote follows the TV: "tv" (channels, alarm…) or "movies" (the movie
@@ -17,43 +18,44 @@ export interface Layout {
 }
 
 export interface ButtonLook {
-  /** Text printed on the key (digits, "RÉVEIL"), next to the glyph if any. */
+  /** Text printed on the key (digits, "ALARM"), next to the glyph if any. */
   label: string;
   glyph?: GlyphName;
-  /** Silkscreen caption under the key. */
+  /** Silkscreen caption under the key (an i18n key in LOOKS, translated by lookOf). */
   caption?: string;
   tone: 'power' | 'machine' | 'number' | 'play' | 'volume' | 'alarm' | 'light' | 'home';
 }
 
 export const LOOKS: Record<string, ButtonLook> = {
-  tv_power: { label: '', glyph: 'power', caption: 'Télé', tone: 'power' },
-  machine_power: { label: '', glyph: 'power', caption: 'Éteindre', tone: 'machine' },
-  home: { label: '', glyph: 'home', caption: 'Quitter films', tone: 'home' },
+  tv_power: { label: '', glyph: 'power', caption: 'remote.cap.tv', tone: 'power' },
+  machine_power: { label: '', glyph: 'power', caption: 'remote.off', tone: 'machine' },
+  home: { label: '', glyph: 'home', caption: 'remote.cap.home', tone: 'home' },
   ...Object.fromEntries(
     Array.from({ length: 9 }, (_, i) => [`channel_${i + 1}`, { label: String(i + 1), tone: 'number' }]),
   ),
-  play_pause: { label: '', glyph: 'playpause', caption: 'Lecture', tone: 'play' },
-  next: { label: '', glyph: 'next', caption: 'Suivant', tone: 'play' },
-  previous: { label: '', glyph: 'previous', caption: 'Précédent', tone: 'play' },
-  seek_forward: { label: '15', glyph: 'forward', caption: 'Avancer', tone: 'play' },
-  seek_backward: { label: '15', glyph: 'rewind', caption: 'Reculer', tone: 'play' },
+  play_pause: { label: '', glyph: 'playpause', caption: 'remote.cap.play', tone: 'play' },
+  next: { label: '', glyph: 'next', caption: 'admin.key.next', tone: 'play' },
+  previous: { label: '', glyph: 'previous', caption: 'admin.key.previous', tone: 'play' },
+  seek_forward: { label: '15', glyph: 'forward', caption: 'remote.cap.forward', tone: 'play' },
+  seek_backward: { label: '15', glyph: 'rewind', caption: 'remote.cap.back', tone: 'play' },
   volume_up: { label: '', glyph: 'plus', caption: 'Volume', tone: 'volume' },
   volume_down: { label: '', glyph: 'minus', caption: 'Volume', tone: 'volume' },
-  darker: { label: '', glyph: 'moon', caption: 'Plus sombre', tone: 'light' },
-  brighter: { label: '', glyph: 'sun', caption: 'Plus clair', tone: 'light' },
-  alarm_toggle: { label: 'RÉVEIL', caption: 'on / off', tone: 'alarm' },
-  alarm_later: { label: '', glyph: 'up', caption: 'Réveil +', tone: 'alarm' },
-  alarm_earlier: { label: '', glyph: 'down', caption: 'Réveil −', tone: 'alarm' },
+  darker: { label: '', glyph: 'moon', caption: 'admin.act.darker', tone: 'light' },
+  brighter: { label: '', glyph: 'sun', caption: 'admin.act.brighter', tone: 'light' },
+  alarm_toggle: { label: 'remote.alarm', caption: 'on / off', tone: 'alarm' },
+  alarm_later: { label: '', glyph: 'up', caption: 'remote.cap.alarm_later', tone: 'alarm' },
+  alarm_earlier: { label: '', glyph: 'down', caption: 'remote.cap.alarm_earlier', tone: 'alarm' },
 };
 
 /** In the movies, ↑/↓ scroll the list under the cursor (lib/tv.svelte.ts). */
 const MOVIE_LOOKS: Record<string, Partial<ButtonLook>> = {
-  alarm_later: { caption: 'Défiler', tone: 'play' },
-  alarm_earlier: { caption: 'Défiler', tone: 'play' },
+  alarm_later: { caption: 'remote.cap.scroll', tone: 'play' },
+  alarm_earlier: { caption: 'remote.cap.scroll', tone: 'play' },
 };
 
 export function lookOf(action: string, mode: Mode): ButtonLook {
-  return mode === 'movies' ? { ...LOOKS[action], ...MOVIE_LOOKS[action] } : LOOKS[action];
+  const look = mode === 'movies' ? { ...LOOKS[action], ...MOVIE_LOOKS[action] } : LOOKS[action];
+  return { ...look, label: look.label && t(look.label), caption: look.caption && t(look.caption) };
 }
 
 /** Silkscreen frame colour of each channel key (1–9), printed around key and name. */

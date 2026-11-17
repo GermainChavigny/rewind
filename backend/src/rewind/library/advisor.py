@@ -103,7 +103,7 @@ def _criterion(key: str, value: str) -> str:
 
 
 def build_prompt(
-    criteria: dict, excluded: list[str], keywords: str = "", kind: str = "movie", lang: str = "fr"
+    criteria: dict, excluded: list[str], keywords: str = "", kind: str = "movie", lang: str = "en"
 ) -> str:
     series = kind == "series"
     lines = [

@@ -6,6 +6,7 @@
 -->
 <script lang="ts">
   import Brand from '../components/Brand.svelte';
+  import { LANGUAGES, setLanguage, t } from '../lib/i18n';
   import Glyph from '../components/Glyph.svelte';
   import { onDestroy, onMount, type Component } from 'svelte';
   import { adminApi, type Cfg, NeedsPin, rememberPin, savedPin, type Status } from './api';
@@ -27,25 +28,26 @@
   type Lamp = 'on' | 'todo' | 'off';
 
   const MASK = '********';
+  // Labels, titles and intros are i18n keys (the language can change live).
   const VIEWS: Record<Section, { label: string; icon: string; view: Component<{ cfg: Cfg }> }> = {
-    channels: { label: 'Chaînes', icon: 'channels', view: Channels },
-    remote: { label: 'Télécommande', icon: 'remote', view: Remote },
-    tv: { label: 'Allumage', icon: 'tv', view: Tv },
-    place: { label: 'Météo', icon: 'weather', view: Place },
-    alarm: { label: 'Réveil', icon: 'alarm', view: Alarm },
-    picture: { label: 'Image et son', icon: 'picture', view: Picture },
-    library: { label: 'Films et séries', icon: 'library', view: Library },
-    security: { label: 'Code secret', icon: 'lock', view: Security },
+    channels: { label: 'admin.menu.channels', icon: 'channels', view: Channels },
+    remote: { label: 'admin.menu.remote', icon: 'remote', view: Remote },
+    tv: { label: 'admin.menu.tv', icon: 'tv', view: Tv },
+    place: { label: 'admin.menu.place', icon: 'weather', view: Place },
+    alarm: { label: 'admin.menu.alarm', icon: 'alarm', view: Alarm },
+    picture: { label: 'admin.menu.picture', icon: 'picture', view: Picture },
+    library: { label: 'admin.menu.library', icon: 'library', view: Library },
+    security: { label: 'admin.menu.security', icon: 'lock', view: Security },
   };
   const MENU = Object.keys(VIEWS) as Section[];
   /** Settings the backend could not apply live (status.restart_needed). */
-  const RESTART_LABELS: Record<string, string> = { display: 'La sortie vidéo et la résolution' };
+  const RESTART_LABELS: Record<string, string> = { display: 'admin.restart.display' };
   const WIZARD: { id: Section; title: string; intro: string }[] = [
-    { id: 'place', title: 'Où êtes-vous ?', intro: 'Pour la météo affichée sur la télé.' },
-    { id: 'tv', title: 'La télé', intro: 'REWIND peut allumer et éteindre la télé.' },
-    { id: 'channels', title: 'Les chaînes', intro: 'Neuf chaînes au plus, une par touche de 1 à 9.' },
-    { id: 'remote', title: 'La télécommande', intro: 'Apprenez les touches de votre télécommande.' },
-    { id: 'security', title: 'Code secret', intro: 'Protégez ces réglages.' },
+    { id: 'place', title: 'admin.wiz.place', intro: 'admin.wiz.place_intro' },
+    { id: 'tv', title: 'admin.wiz.tv', intro: 'admin.wiz.tv_intro' },
+    { id: 'channels', title: 'admin.wiz.channels', intro: 'admin.wiz.channels_intro' },
+    { id: 'remote', title: 'admin.wiz.remote', intro: 'admin.wiz.remote_intro' },
+    { id: 'security', title: 'admin.wiz.security', intro: 'admin.wiz.security_intro' },
   ];
 
   let status = $state<Status | null>(null);
@@ -63,11 +65,21 @@
   let saving = $state<{ progress: number; done: boolean; error: string | null } | null>(null);
   let saveTimer: ReturnType<typeof setInterval> | undefined;
 
+  // The interface follows the language picked in the settings (before saving, as a preview).
+  $effect(() => {
+    if (cfg) setLanguage(cfg.general.language);
+  });
+
   const current = $derived<Section | null>(
     wizard ? (step >= 0 && step < WIZARD.length ? WIZARD[step].id : null) : section,
   );
 
   async function load() {
+    // The language first, so the PIN screen already speaks it (public, no PIN).
+    await fetch('/api/ui')
+      .then((r) => r.json())
+      .then((ui) => setLanguage(ui.language))
+      .catch(() => {});
     try {
       [status, cfg] = await Promise.all([adminApi.status(), adminApi.config()]);
       needPin = false;
@@ -203,95 +215,93 @@
       <span class="mark"><Brand size={34} /></span>
     </div>
     <div class="side">
-      <span class="title">Réglages</span>
+      <span class="title">{t('setup.title')}</span>
       {#if status}<span class="ver">v{status.version}</span>{/if}
     </div>
   </header>
 
   {#if needPin}
-    <Window title="Identification">
-      <p>Entrez le code secret des réglages.</p>
+    <Window title={t('admin.pin.title')}>
+      <p>{t('admin.pin.prompt')}</p>
       <form class="row" onsubmit={unlock}>
-        <input class="grow" type="password" inputmode="numeric" autocomplete="current-password" bind:value={pinInput} placeholder="Code" />
-        <button class="primary" type="submit">Entrer</button>
+        <input class="grow" type="password" inputmode="numeric" autocomplete="current-password" bind:value={pinInput} placeholder={t('admin.pin.placeholder')} />
+        <button class="primary" type="submit">{t('admin.pin.enter')}</button>
       </form>
-      {#if pinError}<p class="bad">Code incorrect.</p>{/if}
+      {#if pinError}<p class="bad">{t('admin.pin.wrong')}</p>{/if}
     </Window>
   {:else if loadError}
-    <Window title="Erreur">
-      <p class="bad">REWIND ne répond pas : {loadError}</p>
-      <div class="row"><button onclick={() => location.reload()}>Réessayer</button></div>
+    <Window title={t('admin.error')}>
+      <p class="bad">{t('admin.load_error', { error: loadError })}</p>
+      <div class="row"><button onclick={() => location.reload()}>{t('lib.retry')}</button></div>
     </Window>
   {:else if !cfg}
-    <Window title="Connexion…">
-      <p>Connexion à la télé…</p>
+    <Window title={t('admin.connecting_title')}>
+      <p>{t('admin.connecting')}</p>
       <div class="pulse"><Progress value={0.35} /></div>
     </Window>
   {:else if wizard}
     {#if step === -1}
-      <Window title="Bienvenue">
-        <p class="hello">Bienvenue dans <strong>REWIND</strong>, la télé d'autrefois.</p>
-        <p>
-          Cinq petites étapes pour la préparer : la ville, la télé, les chaînes, la télécommande et un code secret.
-          Environ cinq minutes. Tout pourra être changé plus tard.
-        </p>
+      <Window title={t('admin.wiz.welcome_title')}>
+        <p class="hello">{@html t('admin.wiz.welcome')}</p>
+        <p>{t('admin.wiz.welcome_text')}</p>
+        <label><span>{t('admin.language')}</span>
+          <select bind:value={cfg.general.language}>
+            {#each LANGUAGES as l (l.id)}<option value={l.id}>{l.name}</option>{/each}
+          </select>
+        </label>
         <ol class="plan">
           {#each WIZARD as w (w.id)}
-            <li><Icon name={VIEWS[w.id].icon} size={28} /> {w.title}</li>
+            <li><Icon name={VIEWS[w.id].icon} size={28} /> {t(w.title)}</li>
           {/each}
         </ol>
-        <div class="row end"><button class="primary" onclick={() => (step = 0)}>Commencer <Glyph name="right" /></button></div>
+        <div class="row end"><button class="primary" onclick={() => (step = 0)}>{t('admin.wiz.start')} <Glyph name="right" /></button></div>
       </Window>
     {:else if step < WIZARD.length}
-      <Window title="Installation">
-        <p class="step-name"><span>Étape {step + 1} / {WIZARD.length}</span> {WIZARD[step].title}</p>
+      <Window title={t('admin.wiz.title')}>
+        <p class="step-name"><span>{t('admin.wiz.step', { n: step + 1, total: WIZARD.length })}</span> {t(WIZARD[step].title)}</p>
         <Progress value={(step + 1) / WIZARD.length} segments={WIZARD.length * 4} />
-        <p class="muted">{WIZARD[step].intro}</p>
+        <p class="muted">{t(WIZARD[step].intro)}</p>
       </Window>
       {@const View = VIEWS[WIZARD[step].id].view}
       <View bind:cfg={cfg!} />
       <div class="bottom">
-        <button onclick={back}><Glyph name="left" /> Retour</button>
+        <button onclick={back}><Glyph name="left" /> {t('nav.back')}</button>
         <span class="grow"></span>
-        <button class="primary" onclick={next}>{#if step === WIZARD.length - 1}Terminer{:else}Suivant <Glyph name="right" />{/if}</button>
+        <button class="primary" onclick={next}>{#if step === WIZARD.length - 1}{t('admin.wiz.finish')}{:else}{t('admin.wiz.next')} <Glyph name="right" />{/if}</button>
       </div>
     {:else}
-      <Window title="Terminé">
-        <p class="hello"><Icon name="tv" size={34} /> C'est prêt !</p>
-        <p>
-          Allumez la télé : REWIND démarre sur la première chaîne. Revenez ici quand vous voulez pour ajouter les films
-          et séries, régler le réveil ou l'image.
-        </p>
-        <div class="row end"><button class="primary" onclick={leaveWizard}>Aller aux réglages</button></div>
+      <Window title={t('admin.wiz.done_title')}>
+        <p class="hello"><Icon name="tv" size={34} /> {t('admin.wiz.done')}</p>
+        <p>{t('admin.wiz.done_text')}</p>
+        <div class="row end"><button class="primary" onclick={leaveWizard}>{t('admin.wiz.to_settings')}</button></div>
       </Window>
     {/if}
   {:else if current}
     {@const View = VIEWS[current].view}
-    <h1 class="s-title"><Icon name={VIEWS[current].icon} size={34} /> {VIEWS[current].label}</h1>
+    <h1 class="s-title"><Icon name={VIEWS[current].icon} size={34} /> {t(VIEWS[current].label)}</h1>
     <View bind:cfg={cfg!} />
     <div class="bottom">
-      <button onclick={cancel}>Annuler</button>
+      <button onclick={cancel}>{t('nav.cancel')}</button>
       <span class="grow"></span>
-      <button class="primary" onclick={saveAndBack}>Enregistrer</button>
+      <button class="primary" onclick={saveAndBack}>{t('admin.save')}</button>
     </div>
   {:else}
     {#if status?.restart_needed?.length}
       <div class="alert">
-        <strong><Glyph name="refresh" /> Redémarrage nécessaire</strong>
-        {RESTART_LABELS[status.restart_needed[0]] ?? 'Certains réglages'} ne peuvent pas changer pendant que la télé
-        fonctionne. Ils s'appliqueront au prochain démarrage de REWIND.
+        <strong><Glyph name="refresh" /> {t('admin.restart.title')}</strong>
+        {t('admin.restart.text', { what: t(RESTART_LABELS[status.restart_needed[0]] ?? 'admin.restart.some') })}
       </div>
     {/if}
     {#if status && !status.has_pin}
       <div class="alert">
-        <strong><Glyph name="warn" /> Attention</strong>
-        Aucun code secret : toute personne connectée à votre Wi-Fi peut changer ces réglages.
-        <button class="link" onclick={() => open('security')}>Choisir un code</button>
+        <strong><Glyph name="warn" /> {t('admin.nopin.title')}</strong>
+        {t('admin.nopin.text')}
+        <button class="link" onclick={() => open('security')}>{t('admin.sec.choose')}</button>
       </div>
     {/if}
     <a class="remote-btn" href="/remote/" target="_blank" rel="noopener">
       <span class="r-led"></span>
-      <span class="r-text"><strong>Télécommande virtuelle</strong><small>Pilotez la télé depuis ce téléphone</small></span>
+      <span class="r-text"><strong>{t('admin.remote_btn')}</strong><small>{t('admin.remote_btn_hint')}</small></span>
       <span class="r-arrow"><Glyph name="external" size="20px" /></span>
     </a>
     <nav class="menu">
@@ -299,28 +309,28 @@
         {@const lamp = lampOf(id)}
         <button onclick={() => open(id)}>
           <Icon name={VIEWS[id].icon} />
-          <span class="m-label">{VIEWS[id].label}</span>
-          <span class="lamp" class:on={lamp === 'on'} class:todo={lamp === 'todo'} title={lamp === 'todo' ? 'À régler' : ''}></span>
+          <span class="m-label">{t(VIEWS[id].label)}</span>
+          <span class="lamp" class:on={lamp === 'on'} class:todo={lamp === 'todo'} title={lamp === 'todo' ? t('admin.lamp.todo') : ''}></span>
         </button>
       {/each}
     </nav>
     <p class="legend">
-      <span><span class="lamp on"></span> prêt</span>
-      <span><span class="lamp todo"></span> à régler</span>
-      <span><span class="lamp"></span> non utilisé</span>
+      <span><span class="lamp on"></span> {t('admin.lamp.on')}</span>
+      <span><span class="lamp todo"></span> {t('admin.lamp.todo')}</span>
+      <span><span class="lamp"></span> {t('admin.lamp.off')}</span>
     </p>
     <div class="updates"><Updates /></div>
   {/if}
 </div>
 
 {#if saving}
-  <div class="modal" role="dialog" aria-modal="true" aria-label="Enregistrement">
-    <Window title={saving.error ? 'Erreur' : saving.done ? 'Enregistré' : 'Enregistrement…'}>
+  <div class="modal" role="dialog" aria-modal="true" aria-label={t('admin.saving')}>
+    <Window title={saving.error ? t('admin.error') : saving.done ? t('admin.saved') : t('admin.saving')}>
       {#if saving.error}
         <p class="bad">{saving.error}</p>
         <div class="row end"><button class="primary" onclick={() => (saving = null)}>OK</button></div>
       {:else}
-        <p>{#if saving.done}Réglages enregistrés <Glyph name="check" />{:else}Envoi des réglages à la télé…{/if}</p>
+        <p>{#if saving.done}{t('admin.saved_text')} <Glyph name="check" />{:else}{t('admin.sending')}{/if}</p>
         <Progress value={saving.progress} />
       {/if}
     </Window>

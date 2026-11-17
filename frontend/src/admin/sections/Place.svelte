@@ -1,6 +1,10 @@
-<!-- Weather place: search a city by name (Open-Meteo geocoding); coordinates by hand as a fallback. -->
+<!--
+  Interface language, and the weather place: search a city by name (Open-Meteo
+  geocoding); coordinates by hand as a fallback.
+-->
 <script lang="ts">
   import Glyph from '../../components/Glyph.svelte';
+  import { LANGUAGES, t } from '../../lib/i18n';
   import { adminApi, type Cfg, type Place } from '../api';
   import Help from '../ui/Help.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -25,7 +29,7 @@
       results = await adminApi.geocode(query);
     } catch {
       results = null;
-      error = 'Recherche impossible pour le moment. Vérifiez la connexion Internet de la télé.';
+      error = t('admin.place.search_error');
     } finally {
       searching = false;
     }
@@ -46,28 +50,32 @@
   }
 </script>
 
-<Window title="Votre ville" lamp={chosen ? 'on' : 'todo'}>
+<Window title={t('admin.language')}>
+  <select bind:value={cfg.general.language} aria-label={t('admin.language')}>
+    {#each LANGUAGES as l (l.id)}<option value={l.id}>{l.name}</option>{/each}
+  </select>
+  <p class="muted">{t('admin.language_hint')}</p>
+</Window>
+
+<Window title={t('admin.place.title')} lamp={chosen ? 'on' : 'todo'}>
   {#snippet help()}
-    <p>
-      La télé affiche la météo du jour et des prochaines heures (bouton météo sous la grille des chaînes). Les
-      prévisions viennent d'Open-Meteo : gratuit, sans compte ni clé.
-    </p>
-    <p>Sans ville, la météo est simplement masquée.</p>
+    <p>{t('admin.place.help1')}</p>
+    <p>{t('admin.place.help2')}</p>
   {/snippet}
 
   {#if chosen}
     <div class="place">
       <span class="pin"><Icon name="weather" size={34} /></span>
       <div class="grow">
-        <strong>{cfg.weather.location_name || 'Lieu choisi'}</strong>
+        <strong>{cfg.weather.location_name || t('admin.place.chosen')}</strong>
         <div class="muted">{cfg.weather.latitude}, {cfg.weather.longitude}</div>
       </div>
-      <button onclick={clear}>Changer</button>
+      <button onclick={clear}>{t('admin.place.change')}</button>
     </div>
   {:else}
     <form class="row" onsubmit={search}>
-      <input class="grow" bind:value={query} placeholder="Tapez votre ville…" autocomplete="off" enterkeyhint="search" />
-      <button class="primary" type="submit" disabled={searching}>{searching ? '…' : 'Chercher'}</button>
+      <input class="grow" bind:value={query} placeholder={t('admin.place.placeholder')} autocomplete="off" enterkeyhint="search" />
+      <button class="primary" type="submit" disabled={searching}>{searching ? '…' : t('adv.search')}</button>
     </form>
     {#if error}<p class="bad">{error}</p>{/if}
     {#if results}
@@ -83,23 +91,20 @@
           {/each}
         </ul>
       {:else}
-        <p class="muted">Aucune ville trouvée. Essayez l'orthographe exacte ou une ville voisine.</p>
+        <p class="muted">{t('admin.place.none')}</p>
       {/if}
     {/if}
   {/if}
 
-  <button class="link" onclick={() => (manual = !manual)}><Glyph name={manual ? 'caret-down' : 'caret-right'} /> Coordonnées à la main</button>
+  <button class="link" onclick={() => (manual = !manual)}><Glyph name={manual ? 'caret-down' : 'caret-right'} /> {t('admin.place.manual')}</button>
   {#if manual}
-    <label><span>Nom affiché</span><input bind:value={cfg.weather.location_name} placeholder="Ma ville" /></label>
+    <label><span>{t('admin.place.name')}</span><input bind:value={cfg.weather.location_name} placeholder={t('admin.place.name_placeholder')} /></label>
     <div class="two">
-      <label><span>Latitude</span><input type="number" step="0.0001" inputmode="decimal" bind:value={cfg.weather.latitude} /></label>
-      <label><span>Longitude</span><input type="number" step="0.0001" inputmode="decimal" bind:value={cfg.weather.longitude} /></label>
+      <label><span>{t('admin.place.lat')}</span><input type="number" step="0.0001" inputmode="decimal" bind:value={cfg.weather.latitude} /></label>
+      <label><span>{t('admin.place.lon')}</span><input type="number" step="0.0001" inputmode="decimal" bind:value={cfg.weather.longitude} /></label>
     </div>
-    <Help label="Où trouver ces nombres ?">
-      <p>
-        Dans Google Maps, appuyez longuement sur votre maison : les deux nombres apparaissent en haut (par exemple
-        <code>48.8566, 2.3522</code>). Le premier est la latitude, le second la longitude.
-      </p>
+    <Help label={t('admin.place.where')}>
+      <p>{@html t('admin.place.where_text')}</p>
     </Help>
   {/if}
 </Window>

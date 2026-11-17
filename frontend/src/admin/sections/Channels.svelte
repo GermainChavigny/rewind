@@ -6,6 +6,7 @@
 <script lang="ts">
   import Glyph from '../../components/Glyph.svelte';
   import ChannelLogo from '../../components/ChannelLogo.svelte';
+  import { t } from '../../lib/i18n';
   import { type Cfg, slug } from '../api';
   import { playlistId } from '../helpers';
   import Help from '../ui/Help.svelte';
@@ -30,7 +31,7 @@
     if (cfg.channels.length >= 9) return;
     const n = cfg.channels.length + 1;
     cfg.channels.push({
-      id: uniqueId(`chaine-${n}`), name: `Chaîne ${n}`, logo_style: 1, kind: 'youtube',
+      id: uniqueId(`chaine-${n}`), name: t('admin.ch.default_name', { n }), logo_style: 1, kind: 'youtube',
       playlist_id: '', save_progress: true, alarm: false,
     }); // prettier-ignore
     open(n - 1);
@@ -70,26 +71,23 @@
   }
 </script>
 
-<Window title="Vos chaînes" lamp={cfg.channels.length ? 'on' : 'todo'}>
+<Window title={t('admin.ch.title')} lamp={cfg.channels.length ? 'on' : 'todo'}>
   {#snippet help()}
-    <p>
-      Comme sur une vraie télé, chaque chaîne a un numéro de 1 à 9 : c'est la touche de la télécommande. Une chaîne
-      diffuse en boucle une playlist YouTube, ou vos films et séries.
-    </p>
-    <p>Le logo change avec le numéro : déplacer une chaîne change donc son logo.</p>
+    <p>{t('admin.ch.help1')}</p>
+    <p>{t('admin.ch.help2')}</p>
   {/snippet}
 
-  <p class="muted">Touchez une chaîne pour la modifier. {cfg.channels.length} / 9</p>
+  <p class="muted">{t('admin.ch.tap')} {cfg.channels.length} / 9</p>
   <div class="grid">
     {#each Array(9) as _, i (i)}
       {@const c = cfg.channels[i]}
       {#if c}
-        <button class="tile" class:editing={editing === i} onclick={() => open(i)} aria-label="Chaîne {i + 1} : {c.name}">
+        <button class="tile" class:editing={editing === i} onclick={() => open(i)} aria-label={t('admin.ch.tile', { n: i + 1, name: c.name })}>
           <ChannelLogo number={i + 1} name={c.name || ' '} variant={c.logo_style} />
-          {#if c.alarm}<span class="badge" title="Chaîne du réveil"><Icon name="alarm" size={18} /></span>{/if}
+          {#if c.alarm}<span class="badge" title={t('admin.ch.alarm')}><Icon name="alarm" size={18} /></span>{/if}
         </button>
       {:else if i === cfg.channels.length}
-        <button class="tile empty" onclick={add} aria-label="Ajouter une chaîne"><span>+</span>Ajouter</button>
+        <button class="tile empty" onclick={add} aria-label={t('admin.ch.add_label')}><span>+</span>{t('admin.ch.add')}</button>
       {:else}
         <div class="tile void"></div>
       {/if}
@@ -99,67 +97,65 @@
 
 {#if ch && editing !== null}
   <div bind:this={editor}>
-    <Window title="Chaîne {editing + 1}">
+    <Window title={t('admin.ch.default_name', { n: editing + 1 })}>
       <label>
-        <span>Nom de la chaîne</span>
-        <input bind:value={ch.name} onchange={() => rename(ch)} maxlength="24" placeholder="Ma chaîne" />
+        <span>{t('admin.ch.name')}</span>
+        <input bind:value={ch.name} onchange={() => rename(ch)} maxlength="24" placeholder={t('admin.ch.name_placeholder')} />
       </label>
 
-      <span class="label">Style du logo</span>
+      <span class="label">{t('admin.ch.style')}</span>
       <div class="styles">
         {#each [1, 2] as v (v)}
-          <button class:selected={ch.logo_style === v} onclick={() => (ch.logo_style = v)} aria-label="Style {v}">
+          <button class:selected={ch.logo_style === v} onclick={() => (ch.logo_style = v)} aria-label={t('admin.ch.style_n', { n: v })}>
             <ChannelLogo number={editing + 1} name={ch.name || ' '} variant={v} />
           </button>
         {/each}
       </div>
 
-      <span class="label">Ce que diffuse la chaîne</span>
+      <span class="label">{t('admin.ch.content')}</span>
       <div class="choices">
         <button class:selected={ch.kind === 'youtube'} onclick={() => (ch.kind = 'youtube')}>
-          <span class="ic"><Glyph name="play" /> YouTube</span> <small>Une playlist en boucle</small>
+          <span class="ic"><Glyph name="play" /> YouTube</span> <small>{t('admin.ch.youtube_hint')}</small>
         </button>
         <button class:selected={ch.kind === 'library'} onclick={() => (ch.kind = 'library')}>
-          <span class="ic"><Icon name="library" size={20} /> Vidéothèque</span> <small>Vos films et séries</small>
+          <span class="ic"><Icon name="library" size={20} /> {t('lib.title')}</span> <small>{t('admin.ch.library_hint')}</small>
         </button>
       </div>
 
       {#if ch.kind === 'youtube'}
         <label>
-          <span>Lien de la playlist</span>
+          <span>{t('admin.ch.playlist')}</span>
           <input
             value={ch.playlist_id ?? ''}
             oninput={(e) => (ch.playlist_id = playlistId(e.currentTarget.value))}
-            placeholder="Collez le lien YouTube"
+            placeholder={t('admin.ch.playlist_placeholder')}
             autocapitalize="off"
           />
         </label>
-        <Help label="Comment copier le lien d'une playlist ?">
+        <Help label={t('admin.ch.howto')}>
           <ol>
-            <li>Dans l'application YouTube, ouvrez la playlist (onglet <strong>Vous → Playlists</strong>).</li>
-            <li>Touchez <strong>⋮</strong> ou <strong>Partager</strong>, puis <strong>Copier le lien</strong>.</li>
-            <li>Collez-le ici : REWIND garde seulement l'identifiant (il commence souvent par <code>PL</code>).</li>
+            <li>{@html t('admin.ch.howto1')}</li>
+            <li>{@html t('admin.ch.howto2')}</li>
+            <li>{@html t('admin.ch.howto3')}</li>
           </ol>
-          <p>La playlist doit être <strong>publique</strong> ou <strong>non répertoriée</strong>, pas privée.</p>
+          <p>{@html t('admin.ch.howto4')}</p>
         </Help>
         <label class="check">
           <input type="checkbox" bind:checked={ch.save_progress} />
-          <span>Reprendre où on s'était arrêté</span>
+          <span>{t('admin.ch.resume')}</span>
         </label>
-        <p class="muted hint">
-          Décochez pour une chaîne d'infos : elle repartira toujours du début de la playlist.
-        </p>
+        <p class="muted hint">{t('admin.ch.resume_hint')}</p>
       {:else}
-        <p class="muted">Cette chaîne ouvre la vidéothèque : films, séries et Movie Advisor.</p>
+        <p class="muted">{t('admin.ch.library_text')}</p>
       {/if}
 
       <label class="check">
         <input type="checkbox" checked={ch.alarm} onchange={(e) => setAlarm(e.currentTarget.checked)} />
-        <span>Chaîne du réveil</span>
+        <span>{t('admin.ch.alarm')}</span>
       </label>
-      <p class="muted hint">Le réveil allume la télé sur cette chaîne. Une seule chaîne à la fois.</p>
+      <p class="muted hint">{t('admin.ch.alarm_hint')}</p>
 
-      <span class="label">Numéro</span>
+      <span class="label">{t('admin.ch.number')}</span>
       <div class="row">
         <button onclick={() => move(-1)} disabled={editing === 0}><Glyph name="left" /> {editing}</button>
         <strong class="num">{editing + 1}</strong>
@@ -168,11 +164,11 @@
 
       <div class="row foot">
         {#if confirmDelete}
-          <span class="grow">Supprimer « {ch.name} » ?</span>
-          <button onclick={() => (confirmDelete = false)}>Non</button>
-          <button class="danger" onclick={remove}>Oui</button>
+          <span class="grow">{t('admin.ch.delete_q', { name: ch.name })}</span>
+          <button onclick={() => (confirmDelete = false)}>{t('admin.no')}</button>
+          <button class="danger" onclick={remove}>{t('admin.yes')}</button>
         {:else}
-          <button class="danger" onclick={() => (confirmDelete = true)}>Supprimer</button>
+          <button class="danger" onclick={() => (confirmDelete = true)}>{t('lib.delete')}</button>
           <span class="grow"></span>
           <button class="primary" onclick={() => (editing = null)}>OK</button>
         {/if}

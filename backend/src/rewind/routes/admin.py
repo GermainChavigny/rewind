@@ -123,7 +123,9 @@ def geocode(q: str, ctx: AppContext = Depends(check_pin)) -> list[dict]:
         return []
     try:
         r = ctx.http.get(
-            GEOCODE_URL, params={"name": q[:80], "count": 6, "language": "fr"}, timeout=8
+            GEOCODE_URL,
+            params={"name": q[:80], "count": 6, "language": ctx.config.ui_language},
+            timeout=8,
         )
         r.raise_for_status()
         results = r.json().get("results") or []
@@ -210,8 +212,8 @@ def check(body: CheckIn, ctx: AppContext = Depends(check_pin)) -> dict:
     if not 0 <= body.index < len(items):
         raise HTTPException(404, "no such entry")
     if body.service == "indexer":
-        return checks.check_indexer(cfg.indexers[body.index], http)
-    return checks.check_advisor(cfg.advisor[body.index], http)
+        return checks.check_indexer(cfg.indexers[body.index], http, cfg.ui_language)
+    return checks.check_advisor(cfg.advisor[body.index], http, cfg.ui_language)
 
 
 class ModelsIn(BaseModel):

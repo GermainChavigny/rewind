@@ -165,7 +165,7 @@ def test_admin_config_masks_and_pin(make_client, paths):
 
 def test_ui_settings(make_client):
     ui = make_client(sample_config()).get("/api/ui").json()
-    assert ui["language"] == "fr" and ui["keymap"]["tv_power"] == ["AudioVolumeMute"]
+    assert ui["language"] == "en" and ui["keymap"]["tv_power"] == ["AudioVolumeMute"]
     assert ui["alarm"]["step_minutes"] == 10
     assert "admin" not in ui and "tmdb" not in ui
     assert ui["first_run"] is True

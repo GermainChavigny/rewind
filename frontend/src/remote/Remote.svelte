@@ -17,6 +17,7 @@
   import { onDestroy, onMount } from 'svelte';
   import Brand from '../components/Brand.svelte';
   import Glyph from '../components/Glyph.svelte';
+  import { setLanguage, t } from '../lib/i18n';
   import {
     actionsFor,
     CHANNEL_INKS,
@@ -61,13 +62,15 @@
     try {
       await loadSetup();
     } catch {
-      say('La télé ne répond pas.');
+      say(t('remote.no_answer'));
     }
     follow();
   });
 
-  /** Keys and channel names: at start, and again after a change in the admin. */
+  /** Language, keys and channel names: at start, and again after a change in the admin. */
   async function loadSetup() {
+    const ui = await (await fetch('/api/ui')).json();
+    setLanguage(ui.language);
     const data = await (await fetch('/api/remote/layout')).json();
     available = [...data.actions, ...data.extra].filter((a: string) => a in LOOKS);
     if (!editing)
@@ -101,7 +104,7 @@
       } else if (event.type === 'config') {
         void loadSetup().catch(() => {});
       } else if (event.type === 'error' && event.message === 'shutdown_failed') {
-        say("L'ordinateur a refusé de s'éteindre.");
+        say(t('difficulties.shutdown_failed'));
       }
     };
   }
@@ -138,10 +141,10 @@
       });
       if (!res.ok) throw new Error(String(res.status));
       const { delivered } = await res.json();
-      if (delivered === false) say("La télé n'écoute pas : est-elle allumée sur REWIND ?");
+      if (delivered === false) say(t('remote.not_listening'));
       return true;
     } catch {
-      say('La télé ne répond pas.');
+      say(t('remote.no_answer'));
       return false;
     }
   }
@@ -198,9 +201,9 @@
     try {
       const res = await fetch('/api/remote/shutdown', { method: 'POST' });
       if (!res.ok) throw new Error(String(res.status));
-      say('Fin des émissions… Bonne nuit !');
+      say(t('remote.goodnight'));
     } catch {
-      say("Impossible d'éteindre l'ordinateur.");
+      say(t('remote.shutdown_error'));
     }
   }
 
@@ -210,7 +213,7 @@
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(layouts[mode]),
-    }).catch(() => say('Disposition non enregistrée.'));
+    }).catch(() => say(t('remote.layout_error')));
   }
 
   function toggleEdit() {
@@ -319,7 +322,7 @@
         body: JSON.stringify(batch),
       });
     } catch {
-      say('La télé ne répond pas.');
+      say(t('remote.no_answer'));
     } finally {
       sending = false;
     }
@@ -344,7 +347,7 @@
     field?.blur();
   }
 
-  const PLACEHOLDERS = { movie: 'Titre du film…', series: 'Titre de la série…', advisor: 'Acteur, thème…' };
+  const PLACEHOLDERS = { movie: 'remote.ph.movie', series: 'remote.ph.series', advisor: 'remote.ph.advisor' };
 </script>
 
 {#snippet face(action: string)}
@@ -358,11 +361,11 @@
     <div class="ir" aria-hidden="true"><span class="led" class:on={led}></span></div>
     <header>
       <Brand size={22} />
-      <button class="mode" onclick={toggleEdit}>{editing ? 'TERMINÉ' : 'RÉORGANISER'}</button>
+      <button class="mode" onclick={toggleEdit}>{editing ? t('remote.done') : t('remote.rearrange')}</button>
     </header>
 
     {#if editing}
-      <p class="hint">Glissez une touche sur une autre case. <button class="reset" onclick={reset}>PAR DÉFAUT</button></p>
+      <p class="hint">{t('remote.drag')} <button class="reset" onclick={reset}>{t('remote.default')}</button></p>
     {/if}
 
     {#if keyboard && !editing}
@@ -373,7 +376,7 @@
           bind:this={field}
           bind:value={typed}
           oninput={onType}
-          placeholder={PLACEHOLDERS[keyboard.purpose]}
+          placeholder={t(PLACEHOLDERS[keyboard.purpose])}
           enterkeyhint={keyboard.purpose === 'advisor' ? 'done' : 'search'}
           autocomplete="off"
           autocapitalize="off"
@@ -387,20 +390,20 @@
 
     {#if mode === 'movies' && !editing}
       <div class="padzone">
-        <span class="silk">Films &amp; séries · pavé tactile</span>
+        <span class="silk">{t('remote.pad_title')}</span>
         <div
           class="pad"
           class:active={padActive}
           role="application"
-          aria-label="Pavé tactile : glissez pour déplacer le curseur de la télé, touchez pour cliquer"
+          aria-label={t('remote.pad_label')}
           onpointerdown={padDown}
           onpointermove={padMove}
           onpointerup={padUp}
           onpointercancel={padUp}
         >
-          <span class="pad-hint">glisser · toucher = clic · 2 doigts = défiler</span>
+          <span class="pad-hint">{t('remote.pad_hint')}</span>
         </div>
-        <button class="key click" onclick={click}><span class="k-label">CLIC</span></button>
+        <button class="key click" onclick={click}><span class="k-label">{t('remote.click')}</span></button>
       </div>
     {/if}
 
@@ -451,14 +454,11 @@
   {#if confirmOff}
     <div class="modal" role="presentation" onclick={(e) => e.target === e.currentTarget && (confirmOff = false)}>
       <div class="dialog" role="alertdialog" aria-labelledby="off-title" aria-describedby="off-text">
-        <div class="d-title" id="off-title">Éteindre REWIND ?</div>
-        <p id="off-text">
-          L'ordinateur de la télé va s'éteindre (et la télé avec lui). Pour le rallumer, il faudra appuyer sur son
-          bouton.
-        </p>
+        <div class="d-title" id="off-title">{t('remote.off_title')}</div>
+        <p id="off-text">{t('remote.off_text')}</p>
         <div class="d-actions">
-          <button class="d-btn" onclick={() => (confirmOff = false)}>Annuler</button>
-          <button class="d-btn danger" onclick={shutdown}>Éteindre</button>
+          <button class="d-btn" onclick={() => (confirmOff = false)}>{t('nav.cancel')}</button>
+          <button class="d-btn danger" onclick={shutdown}>{t('remote.off')}</button>
         </div>
       </div>
     </div>

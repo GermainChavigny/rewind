@@ -7,7 +7,8 @@
   import Glyph from '../../components/Glyph.svelte';
   import { onDestroy } from 'svelte';
   import { adminApi, type Cfg } from '../api';
-  import { CHIMES, duration } from '../helpers';
+  import { t } from '../../lib/i18n';
+  import { CHIMES, chimeText, duration } from '../helpers';
   import Window from '../ui/Window.svelte';
 
   let { cfg = $bindable() }: { cfg: Cfg } = $props();
@@ -18,6 +19,8 @@
   const hasChime = $derived(a.chime !== 'none');
   // The timeline spans the whole alarm, up to the automatic stop.
   const span = $derived(Math.max(1, a.max_duration_s));
+  // The summary sentence is HTML (bold durations): the channel name is escaped.
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
   const pct = (s: number) => `${Math.min(100, (Math.max(0, s) / span) * 100)}%`;
 
   let player: HTMLAudioElement | null = null;
@@ -39,41 +42,40 @@
   async function listenOnTv() {
     tvNote = '';
     const { delivered } = await adminApi.tvEvent('chime', a.chime).catch(() => ({ delivered: 0 }));
-    tvNote = delivered ? 'La télé joue la sonnerie.' : "La télé n'est pas connectée (est-elle allumée sur REWIND ?).";
+    tvNote = delivered ? t('admin.alarm.tv_plays') : t('admin.alarm.tv_offline');
   }
 
   onDestroy(() => player?.pause());
 </script>
 
-<Window title="Le réveil">
+<Window title={t('admin.alarm.title')}>
   {#snippet help()}
-    <p>
-      Réglez l'heure du réveil depuis la télé (sous la grille des chaînes) ou avec la télécommande. Ici, vous réglez
-      <strong>comment</strong> il vous réveille : en douceur, la sonnerie d'abord, puis la chaîne.
-    </p>
-    <p>
-      La sonnerie est une sécurité si la vidéo n'a pas de son. Elle suffit à elle seule : la chaîne du réveil est
-      facultative (elle se choisit dans <strong>Chaînes</strong>).
-    </p>
+    <p>{@html t('admin.alarm.help1')}</p>
+    <p>{@html t('admin.alarm.help2')}</p>
   {/snippet}
 
   <p class="sentence">
-    À l'heure dite, la télé s'allume.
+    {t('admin.alarm.s_on')}
     {#if hasChime}
-      La sonnerie {#if a.sound_delay_s}démarre après <strong>{duration(a.sound_delay_s)}</strong> et{/if} monte en
-      <strong>{duration(a.sound_ramp_s)}</strong>.
+      {@html t(a.sound_delay_s ? 'admin.alarm.s_chime_delay' : 'admin.alarm.s_chime', {
+        delay: duration(a.sound_delay_s),
+        ramp: duration(a.sound_ramp_s),
+      })}
     {/if}
     {#if alarmChannel}
-      « {alarmChannel.name} » arrive après <strong>{duration(a.video_delay_s)}</strong> et monte en
-      <strong>{duration(a.video_ramp_s)}</strong>.
+      {@html t('admin.alarm.s_channel', {
+        name: esc(alarmChannel.name),
+        delay: duration(a.video_delay_s),
+        ramp: duration(a.video_ramp_s),
+      })}
     {/if}
-    Sans réponse, tout s'arrête après <strong>{duration(a.max_duration_s)}</strong>.
+    {@html t('admin.alarm.s_stop', { max: duration(a.max_duration_s) })}
   </p>
 
   <div class="timeline" aria-hidden="true">
     {#if hasChime}
       <div class="track">
-        <span class="t-label">Sonnerie</span>
+        <span class="t-label">{t('admin.alarm.chime')}</span>
         <span class="lane">
           <span class="wait" style:width={pct(a.sound_delay_s)}></span>
           <span class="ramp sound" style:width={pct(a.sound_ramp_s)}></span>
@@ -83,7 +85,7 @@
     {/if}
     {#if alarmChannel}
       <div class="track">
-        <span class="t-label">Chaîne</span>
+        <span class="t-label">{t('alarm.channel')}</span>
         <span class="lane">
           <span class="wait" style:width={pct(a.video_delay_s)}></span>
           <span class="ramp image" style:width={pct(a.video_ramp_s)}></span>
@@ -91,39 +93,40 @@
         </span>
       </div>
     {/if}
-    <div class="scale"><span>0</span><span>arrêt : {duration(span)}</span></div>
+    <div class="scale"><span>0</span><span>{t('admin.alarm.stop_at', { time: duration(span) })}</span></div>
   </div>
 
   {#if !hasChime && !alarmChannel}
-    <p class="bad">Ni sonnerie ni chaîne du réveil : le réveil ne fera rien.</p>
+    <p class="bad">{t('admin.alarm.nothing')}</p>
   {/if}
 </Window>
 
-<Window title="Sonnerie">
+<Window title={t('admin.alarm.chime')}>
   {#snippet help()}
-    <p>Des sonneries douces, qui montent progressivement. Touchez <Glyph name="play" /> pour écouter sur le téléphone.</p>
+    <p>{t('admin.alarm.chime_help')} <Glyph name="play" /> {t('admin.alarm.chime_help2')}</p>
   {/snippet}
   <div class="chimes">
-    {#each CHIMES as c (c.id)}
+    {#each CHIMES as id (id)}
+      {@const c = { id, ...chimeText(id) }}
       <div class="chime" class:selected={a.chime === c.id}>
         <button class="pick" onclick={() => (a.chime = c.id)}>
           <span class="radio"></span>
           <span class="c-text"><strong>{c.label}</strong><small>{c.description}</small></span>
         </button>
         {#if c.id !== 'none'}
-          <button class="play" onclick={() => listen(c.id)} aria-label="Écouter {c.label}"><Glyph name={playing === c.id ? 'stop' : 'play'} /></button>
+          <button class="play" onclick={() => listen(c.id)} aria-label={t('admin.alarm.listen', { name: c.label })}><Glyph name={playing === c.id ? 'stop' : 'play'} /></button>
         {/if}
       </div>
     {/each}
   </div>
   {#if hasChime}
-    <button onclick={listenOnTv}>Écouter sur la télé</button>
+    <button onclick={listenOnTv}>{t('admin.alarm.listen_tv')}</button>
     {#if tvNote}<p class="muted">{tvNote}</p>{/if}
   {/if}
 </Window>
 
-<Window title="Réglages fins">
-  <span class="label">Pas des touches plus tôt / plus tard</span>
+<Window title={t('admin.alarm.fine')}>
+  <span class="label">{t('admin.alarm.step')}</span>
   <div class="steps">
     {#each STEPS as s (s)}
       <button class:selected={a.step_minutes === s} onclick={() => (a.step_minutes = s)}>{s} min</button>
@@ -131,18 +134,18 @@
   </div>
 
   {#if hasChime}
-    <label><span>La sonnerie démarre après : {duration(a.sound_delay_s)}</span>
+    <label><span>{t('admin.alarm.f_sound_delay', { time: duration(a.sound_delay_s) })}</span>
       <input type="range" min="0" max="600" step="10" bind:value={a.sound_delay_s} /></label>
-    <label><span>Montée de la sonnerie : {duration(a.sound_ramp_s)}</span>
+    <label><span>{t('admin.alarm.f_sound_ramp', { time: duration(a.sound_ramp_s) })}</span>
       <input type="range" min="0" max="120" step="5" bind:value={a.sound_ramp_s} /></label>
   {/if}
   {#if alarmChannel}
-    <label><span>La chaîne arrive après : {duration(a.video_delay_s)}</span>
+    <label><span>{t('admin.alarm.f_video_delay', { time: duration(a.video_delay_s) })}</span>
       <input type="range" min="0" max="120" step="5" bind:value={a.video_delay_s} /></label>
-    <label><span>Montée du son de la chaîne : {duration(a.video_ramp_s)}</span>
+    <label><span>{t('admin.alarm.f_video_ramp', { time: duration(a.video_ramp_s) })}</span>
       <input type="range" min="0" max="60" step="5" bind:value={a.video_ramp_s} /></label>
   {/if}
-  <label><span>Arrêt automatique après : {duration(a.max_duration_s)}</span>
+  <label><span>{t('admin.alarm.f_max', { time: duration(a.max_duration_s) })}</span>
     <input type="range" min="60" max="1800" step="60" bind:value={a.max_duration_s} /></label>
 </Window>
 

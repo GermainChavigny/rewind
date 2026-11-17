@@ -1,4 +1,5 @@
 /** Pure helpers for the phone admin (tested in helpers.test.ts). */
+import { language, t } from '../lib/i18n';
 
 /**
  * The playlist id from whatever the user pastes: a full YouTube link
@@ -11,72 +12,58 @@ export function playlistId(input: string): string {
   return text;
 }
 
+// Symbols, or i18n keys (admin.key.*).
 const KEY_NAMES: Record<string, string> = {
-  ' ': 'Espace',
+  ' ': 'admin.key.space',
   ArrowUp: '↑',
   ArrowDown: '↓',
   ArrowLeft: '←',
   ArrowRight: '→',
-  AudioVolumeMute: 'Muet',
+  AudioVolumeMute: 'admin.key.mute',
   AudioVolumeUp: 'Vol +',
   AudioVolumeDown: 'Vol −',
-  MediaPlayPause: 'Lecture/Pause',
-  MediaTrackNext: 'Suivant',
-  MediaTrackPrevious: 'Précédent',
+  MediaPlayPause: 'admin.key.playpause',
+  MediaTrackNext: 'admin.key.next',
+  MediaTrackPrevious: 'admin.key.previous',
   PageUp: 'Page ↑',
   PageDown: 'Page ↓',
-  Enter: 'Entrée',
-  Escape: 'Échap',
-  Backspace: 'Retour',
+  Enter: 'admin.key.enter',
+  Escape: 'admin.key.escape',
+  Backspace: 'admin.key.backspace',
 };
 
 /** A readable name for a keyboard key value ("ArrowUp" → "↑"). */
 export function keyLabel(key: string): string {
-  return KEY_NAMES[key] ?? (key.length === 1 ? key.toUpperCase() : key);
+  const name = KEY_NAMES[key];
+  if (name) return t(name);
+  return key.length === 1 ? key.toUpperCase() : key;
 }
 
 export interface ActionGroup {
+  id: string;
   title: string;
   actions: { id: string; label: string }[];
 }
 
-export const ACTION_GROUPS: ActionGroup[] = [
-  {
-    title: 'Chaînes',
-    actions: Array.from({ length: 9 }, (_, i) => ({ id: `channel_${i + 1}`, label: `Chaîne ${i + 1}` })),
-  },
-  {
-    title: 'Télé',
-    actions: [{ id: 'tv_power', label: 'Allumer / éteindre' }],
-  },
-  {
-    title: 'Lecture',
-    actions: [
-      { id: 'play_pause', label: 'Lecture / pause' },
-      { id: 'next', label: 'Vidéo suivante' },
-      { id: 'previous', label: 'Vidéo précédente' },
-      { id: 'seek_forward', label: 'Avancer de 15 s' },
-      { id: 'seek_backward', label: 'Reculer de 15 s' },
-    ],
-  },
-  {
-    title: 'Son et image',
-    actions: [
-      { id: 'volume_up', label: 'Volume +' },
-      { id: 'volume_down', label: 'Volume −' },
-      { id: 'darker', label: 'Plus sombre' },
-      { id: 'brighter', label: 'Plus clair' },
-    ],
-  },
-  {
-    title: 'Réveil',
-    actions: [
-      { id: 'alarm_toggle', label: 'Activer / couper' },
-      { id: 'alarm_later', label: 'Plus tard' },
-      { id: 'alarm_earlier', label: 'Plus tôt' },
-    ],
-  },
-];
+/** The remote actions by group, labelled in the interface language. */
+export function actionGroups(): ActionGroup[] {
+  const group = (id: string, actions: string[]) => ({
+    id,
+    title: t(`admin.act.group.${id}`),
+    actions: actions.map((a) => ({ id: a, label: t(`admin.act.${a}`) })),
+  });
+  return [
+    {
+      id: 'channels',
+      title: t('admin.menu.channels'),
+      actions: Array.from({ length: 9 }, (_, i) => ({ id: `channel_${i + 1}`, label: t('admin.ch.default_name', { n: i + 1 }) })),
+    },
+    group('tv', ['tv_power']),
+    group('playback', ['play_pause', 'next', 'previous', 'seek_forward', 'seek_backward']),
+    group('picture', ['volume_up', 'volume_down', 'darker', 'brighter']),
+    group('alarm', ['alarm_toggle', 'alarm_later', 'alarm_earlier']),
+  ];
+}
 
 /** "45 s", "2 min", "2 min 30 s". */
 export function duration(seconds: number): string {
@@ -89,20 +76,17 @@ export function duration(seconds: number): string {
 
 /** Signed milliseconds for the A/V offset, as a sentence. */
 export function avOffsetText(ms: number): string {
-  if (!ms) return 'Son et image synchronisés (aucun décalage).';
-  const abs = Math.abs(ms);
-  return ms > 0 ? `Le son est retardé de ${abs} ms.` : `Le son est avancé de ${abs} ms.`;
+  if (!ms) return t('admin.av.none');
+  return t(ms > 0 ? 'admin.av.later' : 'admin.av.earlier', { ms: Math.abs(ms) });
 }
 
 /** Alarm chimes (frontend/public/audio/chimes/<id>.mp3, made by scripts/make-chimes.py). */
-export const CHIMES: { id: string; label: string; description: string }[] = [
-  { id: 'classic', label: 'Classique', description: 'La sonnerie douce' },
-  { id: 'bells', label: 'Carillon', description: 'Trois cloches claires' },
-  { id: 'musicbox', label: 'Boîte à musique', description: 'Une petite mélodie' },
-  { id: 'dawn', label: 'Aube', description: 'Un accord chaud qui enfle' },
-  { id: 'drops', label: 'Gouttes', description: 'Des notes de marimba' },
-  { id: 'none', label: 'Aucune', description: 'La chaîne seulement' },
-];
+export const CHIMES = ['classic', 'bells', 'musicbox', 'dawn', 'drops', 'none'];
+
+/** A chime's name and description in the interface language. */
+export function chimeText(id: string): { label: string; description: string } {
+  return { label: t(`admin.chime.${id}`), description: t(`admin.chime.${id}_hint`) };
+}
 
 /** Audio port the A/V offset was last applied to live (restored on Cancel). */
 export const liveAudio: { port: string | null } = { port: null };
@@ -114,27 +98,27 @@ export interface ProviderPreset {
   base_url: string | null;
   model: string;
   keyUrl: string | null;
-  note: string;
+  note: string; // i18n key
 }
 
 /** AI providers for the Movie Advisor: Gemini, or any OpenAI-compatible API. */
 export const PROVIDERS: ProviderPreset[] = [
   { id: 'gemini', name: 'Gemini', kind: 'gemini', base_url: null, model: 'gemini-2.5-flash',
-    keyUrl: 'https://aistudio.google.com/apikey', note: 'Google · gratuit pour un usage personnel' },
+    keyUrl: 'https://aistudio.google.com/apikey', note: 'admin.prov.gemini' },
   { id: 'groq', name: 'Groq', kind: 'openai', base_url: 'https://api.groq.com/openai/v1',
-    model: 'llama-3.3-70b-versatile', keyUrl: 'https://console.groq.com/keys', note: 'Très rapide · offre gratuite' },
+    model: 'llama-3.3-70b-versatile', keyUrl: 'https://console.groq.com/keys', note: 'admin.prov.fast_free' },
   { id: 'mistral', name: 'Mistral', kind: 'openai', base_url: 'https://api.mistral.ai/v1',
-    model: 'mistral-small-latest', keyUrl: 'https://console.mistral.ai/api-keys', note: 'Français · offre gratuite' },
+    model: 'mistral-small-latest', keyUrl: 'https://console.mistral.ai/api-keys', note: 'admin.prov.mistral' },
   { id: 'openrouter', name: 'OpenRouter', kind: 'openai', base_url: 'https://openrouter.ai/api/v1',
-    model: 'openai/gpt-4o-mini', keyUrl: 'https://openrouter.ai/keys', note: 'Des centaines de modèles, une seule clé' },
+    model: 'openai/gpt-4o-mini', keyUrl: 'https://openrouter.ai/keys', note: 'admin.prov.openrouter' },
   { id: 'cerebras', name: 'Cerebras', kind: 'openai', base_url: 'https://api.cerebras.ai/v1',
-    model: 'llama-3.3-70b', keyUrl: 'https://cloud.cerebras.ai', note: 'Très rapide · offre gratuite' },
+    model: 'llama-3.3-70b', keyUrl: 'https://cloud.cerebras.ai', note: 'admin.prov.fast_free' },
   { id: 'openai', name: 'OpenAI', kind: 'openai', base_url: 'https://api.openai.com/v1',
-    model: 'gpt-4o-mini', keyUrl: 'https://platform.openai.com/api-keys', note: 'ChatGPT · payant' },
+    model: 'gpt-4o-mini', keyUrl: 'https://platform.openai.com/api-keys', note: 'admin.prov.openai' },
   { id: 'deepseek', name: 'DeepSeek', kind: 'openai', base_url: 'https://api.deepseek.com/v1',
-    model: 'deepseek-chat', keyUrl: 'https://platform.deepseek.com/api_keys', note: 'Payant, très bon marché' },
+    model: 'deepseek-chat', keyUrl: 'https://platform.deepseek.com/api_keys', note: 'admin.prov.deepseek' },
   { id: 'ollama', name: 'Ollama (local)', kind: 'openai', base_url: 'http://127.0.0.1:11434/v1',
-    model: 'llama3.2', keyUrl: null, note: 'Sur votre ordinateur, sans clé' },
+    model: 'llama3.2', keyUrl: null, note: 'admin.prov.ollama' },
 ]; // prettier-ignore
 
 /** The preset an advisor entry was made from, guessed from its kind and address. */
@@ -167,8 +151,8 @@ export const SUBTITLE_CODES = [
 ]; // prettier-ignore
 export const MAX_SUBTITLE_LANGUAGES = 4;
 
-/** Language name in the interface language ("en" → "Anglais"). */
-export function languageName(code: string, uiLanguage = 'fr'): string {
+/** Language name in the interface language ("en" → "Anglais" in French). */
+export function languageName(code: string, uiLanguage = language()): string {
   try {
     const name = new Intl.DisplayNames([uiLanguage], { type: 'language' }).of(code) ?? code;
     return name.charAt(0).toLocaleUpperCase(uiLanguage) + name.slice(1);

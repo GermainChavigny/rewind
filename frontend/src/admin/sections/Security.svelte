@@ -5,6 +5,7 @@
 <script lang="ts">
   import Glyph from '../../components/Glyph.svelte';
   import { untrack } from 'svelte';
+  import { t } from '../../lib/i18n';
   import type { Cfg } from '../api';
   import Icon from '../ui/Icon.svelte';
   import Window from '../ui/Window.svelte';
@@ -33,7 +34,7 @@
 
   function ok() {
     if (entry.length < 4) {
-      note = { ok: false, text: 'Au moins 4 chiffres.' };
+      note = { ok: false, text: t('admin.sec.short') };
       return;
     }
     if (stage === 'first') {
@@ -45,46 +46,40 @@
       cfg.admin.pin = entry;
       stage = 'idle';
       entry = first = '';
-      note = { ok: true, text: 'Nouveau code prêt. Enregistrez pour l\'activer.' };
+      note = { ok: true, text: t('admin.sec.ready') };
     } else {
       entry = first = '';
       stage = 'first';
-      note = { ok: false, text: 'Les deux codes ne correspondent pas. Recommencez.' };
+      note = { ok: false, text: t('admin.sec.mismatch') };
     }
   }
 
   function removePin() {
     cfg.admin.pin = '';
-    note = { ok: true, text: 'Le code sera supprimé à l\'enregistrement.' };
+    note = { ok: true, text: t('admin.sec.removed') };
   }
 </script>
 
-<Window title="Protection" lamp={active ? 'on' : 'todo'}>
+<Window title={t('admin.sec.title')} lamp={active ? 'on' : 'todo'}>
   {#snippet help()}
-    <p>
-      Le code protège ces réglages : sans lui, n'importe qui connecté à votre Wi-Fi peut les modifier. La télé, elle,
-      ne demande jamais le code.
-    </p>
-    <p>
-      Code oublié ? Sur le PC de la télé, effacez la ligne <code>pin</code> de la rubrique <code>[admin]</code> du
-      fichier <code>~/.config/rewind/config.toml</code> et enregistrez : c'est pris en compte aussitôt.
-    </p>
+    <p>{t('admin.sec.help1')}</p>
+    <p>{@html t('admin.sec.help2')}</p>
   {/snippet}
 
   {#if stage === 'idle'}
     <div class="state">
       <span class="big" class:off={!active}><Icon name="lock" size={40} /></span>
       <div>
-        <strong>{active ? 'Réglages protégés' : 'Aucun code'}</strong>
-        <div class="muted">{active ? 'Le code est demandé sur chaque téléphone.' : 'Conseillé : choisissez un code de 4 à 8 chiffres.'}</div>
+        <strong>{active ? t('admin.sec.protected') : t('admin.sec.none')}</strong>
+        <div class="muted">{active ? t('admin.sec.protected_hint') : t('admin.sec.none_hint')}</div>
       </div>
     </div>
     <div class="row">
-      <button class="primary" onclick={start}>{active ? 'Changer le code' : 'Choisir un code'}</button>
-      {#if active}<button class="danger" onclick={removePin}>Supprimer</button>{/if}
+      <button class="primary" onclick={start}>{active ? t('admin.sec.change') : t('admin.sec.choose')}</button>
+      {#if active}<button class="danger" onclick={removePin}>{t('lib.delete')}</button>{/if}
     </div>
   {:else}
-    <p class="prompt">{stage === 'first' ? 'Tapez le nouveau code' : 'Tapez-le encore une fois'}</p>
+    <p class="prompt">{stage === 'first' ? t('admin.sec.type_new') : t('admin.sec.type_again')}</p>
     <div class="screen" aria-live="polite">
       {#each Array(Math.max(4, entry.length)) as _, i (i)}
         <span>{i < entry.length ? '●' : '_'}</span>
@@ -94,14 +89,14 @@
       {#each ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as d (d)}
         <button onclick={() => press(d)}>{d}</button>
       {/each}
-      <button onclick={() => (entry = entry.slice(0, -1))} aria-label="Effacer"><Glyph name="erase" size="22px" /></button>
+      <button onclick={() => (entry = entry.slice(0, -1))} aria-label={t('admin.sec.erase')}><Glyph name="erase" size="22px" /></button>
       <button onclick={() => press('0')}>0</button>
       <button class="go" onclick={ok}>OK</button>
     </div>
-    <div class="row"><button onclick={() => ((stage = 'idle'), (entry = first = ''))}>Annuler</button></div>
+    <div class="row"><button onclick={() => ((stage = 'idle'), (entry = first = ''))}>{t('nav.cancel')}</button></div>
   {/if}
   {#if note}<p class:ok={note.ok} class:bad={!note.ok}>{note.text}</p>{/if}
-  {#if changed && stage === 'idle' && !note}<p class="ok">Modification prête : enregistrez pour l'appliquer.</p>{/if}
+  {#if changed && stage === 'idle' && !note}<p class="ok">{t('admin.sec.pending')}</p>{/if}
 </Window>
 
 <style>

@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
   import Glyph from '../../components/Glyph.svelte';
+  import { t } from '../../lib/i18n';
   import { adminApi, type Cfg } from '../api';
   import {
     languageName,
@@ -37,7 +38,7 @@
   }
 
   function addCustom() {
-    cfg.advisor.push({ name: 'Mon IA', kind: 'openai', base_url: 'https://', model: '', api_key: '', json_mode: true });
+    cfg.advisor.push({ name: t('admin.lib.my_ai'), kind: 'openai', base_url: 'https://', model: '', api_key: '', json_mode: true });
   }
 
   let models = $state<Record<number, string[]>>({});
@@ -49,17 +50,19 @@
     modelError[i] = '';
     try {
       models[i] = await adminApi.models(i, cfg);
-      if (!models[i].length) modelError[i] = 'Aucun modèle proposé.';
+      if (!models[i].length) modelError[i] = t('admin.lib.no_models');
     } catch {
-      modelError[i] = 'Liste indisponible : vérifiez la clé.';
+      modelError[i] = t('admin.lib.models_error');
     } finally {
       loadingModels = null;
     }
   }
 
   // Subtitle languages kept with each film (backend SUBTITLE_LANGUAGES), by name.
-  const SUB_LANGS = SUBTITLE_CODES.map((id) => ({ id, name: languageName(id, cfg.general.language) })).sort(
-    (a, b) => a.name.localeCompare(b.name, cfg.general.language),
+  const SUB_LANGS = $derived(
+    SUBTITLE_CODES.map((id) => ({ id, name: languageName(id, cfg.general.language) })).sort((a, b) =>
+      a.name.localeCompare(b.name, cfg.general.language),
+    ),
   );
   // Empty list = the interface language (backend Config.subtitle_languages).
   const uiLanguage = $derived(cfg.general.language.split('-')[0].toLowerCase());
@@ -69,179 +72,156 @@
   }
 </script>
 
-<Window title="Vidéothèque">
+<Window title={t('lib.title')}>
   {#snippet help()}
-    <p>
-      La vidéothèque cherche des films et des séries, les télécharge sur le PC de la télé, ajoute les sous-titres et les
-      prépare pour la télé. Elle s'ouvre avec la chaîne « Vidéothèque » (voir Chaînes).
-    </p>
-    <p>Chaque service ci-dessous a un voyant : vert quand il est prêt, orange s'il manque quelque chose.</p>
+    <p>{t('admin.lib.help1')}</p>
+    <p>{t('admin.lib.help2')}</p>
   {/snippet}
   <label class="check">
     <input type="checkbox" bind:checked={cfg.library.enabled} />
-    <span>Activer les films et séries</span>
+    <span>{t('admin.lib.enable')}</span>
   </label>
   {#if cfg.library.enabled}
-    <span class="label">Téléchargements en même temps</span>
+    <span class="label">{t('admin.lib.slots')}</span>
     <div class="stepper">
-      <button onclick={() => slots(-1)} aria-label="Moins">−</button>
+      <button onclick={() => slots(-1)} aria-label={t('admin.lib.less')}>−</button>
       <strong>{cfg.library.download_slots}</strong>
-      <button onclick={() => slots(1)} aria-label="Plus">+</button>
+      <button onclick={() => slots(1)} aria-label={t('admin.lib.more')}>+</button>
     </div>
     <label class="check">
       <input type="checkbox" bind:checked={cfg.library.announce_ready} />
-      <span>Annoncer « Film prêt » à la fin d'un téléchargement</span>
+      <span>{t('admin.lib.announce')}</span>
     </label>
   {/if}
 </Window>
 
 {#if cfg.library.enabled}
-  <Window title="Fiches des films" lamp={lampOf(has(cfg.tmdb.api_key))}>
+  <Window title={t('admin.lib.tmdb_title')} lamp={lampOf(has(cfg.tmdb.api_key))}>
     {#snippet help()}
-      <p>TMDB fournit les titres, affiches et résumés des films et séries. Le compte et la clé sont gratuits.</p>
+      <p>{t('admin.lib.tmdb_help')}</p>
     {/snippet}
-    <Secret bind:value={cfg.tmdb.api_key} label="Clé TMDB" placeholder="Clé d'API (v3)" />
-    <Help label="Où trouver ma clé TMDB ?">
+    <Secret bind:value={cfg.tmdb.api_key} label={t('admin.lib.tmdb_key')} placeholder={t('admin.lib.tmdb_placeholder')} />
+    <Help label={t('admin.lib.tmdb_where')}>
       <ol>
-        <li>Créez un compte sur <a href="https://www.themoviedb.org/signup" target="_blank" rel="noreferrer">themoviedb.org</a>.</li>
-        <li>Ouvrez <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noreferrer">Paramètres → API</a> et demandez une clé « Developer » (usage personnel).</li>
-        <li>Copiez la <strong>Clé d'API</strong> (la courte, pas le long « jeton d'accès »).</li>
+        <li>{@html t('admin.lib.tmdb_where1')}</li>
+        <li>{@html t('admin.lib.tmdb_where2')}</li>
+        <li>{@html t('admin.lib.tmdb_where3')}</li>
       </ol>
     </Help>
     <TestButton run={() => adminApi.check('tmdb', cfg)} />
   </Window>
 
-  <Window title="Sous-titres" lamp={lampOf(has(cfg.opensubtitles.api_key))}>
+  <Window title={t('pause.subtitles')} lamp={lampOf(has(cfg.opensubtitles.api_key))}>
     {#snippet help()}
-      <p>
-        Quand un film n'a pas de sous-titres, REWIND les cherche sur OpenSubtitles et les cale sur la vidéo. Sans clé,
-        seuls les sous-titres déjà inclus dans les fichiers sont utilisés.
-      </p>
+      <p>{t('admin.lib.subs_help')}</p>
     {/snippet}
-    <span class="label">Langues des sous-titres</span>
+    <span class="label">{t('admin.lib.subs_langs')}</span>
     <TagPicker
       bind:value={cfg.opensubtitles.languages}
       options={SUB_LANGS}
       max={MAX_SUBTITLE_LANGUAGES}
-      label="Langues des sous-titres"
-      placeholder="Ajouter une langue…"
+      label={t('admin.lib.subs_langs')}
+      placeholder={t('admin.lib.subs_add')}
     />
     <p class="muted">
       {#if cfg.opensubtitles.languages.length}
-        Gardés avec chaque film : ceux déjà dans le fichier, sinon téléchargés. {MAX_SUBTITLE_LANGUAGES} langues au plus.
+        {t('admin.lib.subs_kept', { max: MAX_SUBTITLE_LANGUAGES })}
       {:else if SUBTITLE_CODES.includes(uiLanguage)}
-        Aucune choisie : la langue de l'interface ({languageName(uiLanguage, cfg.general.language)}).
+        {t('admin.lib.subs_ui', { name: languageName(uiLanguage, cfg.general.language) })}
       {:else}
-        Aucune langue : les films n'auront pas de sous-titres.
+        {t('admin.lib.subs_none')}
       {/if}
     </p>
-    <Secret bind:value={cfg.opensubtitles.api_key} label="Clé API" />
-    <Help label="Où trouver ma clé OpenSubtitles ?">
+    <Secret bind:value={cfg.opensubtitles.api_key} label={t('admin.lib.api_key')} />
+    <Help label={t('admin.lib.os_where')}>
       <ol>
-        <li>Créez un compte gratuit sur <a href="https://www.opensubtitles.com" target="_blank" rel="noreferrer">opensubtitles.com</a>.</li>
-        <li>Ouvrez <a href="https://www.opensubtitles.com/consumers" target="_blank" rel="noreferrer">API consumers</a>, puis <strong>New consumer</strong>.</li>
-        <li>Donnez-lui un nom (« REWIND ») et copiez la <strong>API key</strong>.</li>
+        <li>{@html t('admin.lib.os_where1')}</li>
+        <li>{@html t('admin.lib.os_where2')}</li>
+        <li>{@html t('admin.lib.os_where3')}</li>
       </ol>
-      <p>L'identifiant et le mot de passe sont ceux de votre compte : ils servent à télécharger les sous-titres (nombre limité par jour).</p>
+      <p>{t('admin.lib.os_account')}</p>
     </Help>
-    <label><span>Identifiant</span><input bind:value={cfg.opensubtitles.username} autocapitalize="off" autocomplete="off" /></label>
-    <Secret bind:value={cfg.opensubtitles.password} label="Mot de passe" password />
+    <label><span>{t('admin.lib.username')}</span><input bind:value={cfg.opensubtitles.username} autocapitalize="off" autocomplete="off" /></label>
+    <Secret bind:value={cfg.opensubtitles.password} label={t('admin.lib.password')} password />
     <TestButton run={() => adminApi.check('opensubtitles', cfg)} />
   </Window>
 
-  <Window title="Recherche de films" lamp={lampOf(cfg.indexers.some((i: Cfg) => has(i.api_key)))}>
+  <Window title={t('admin.lib.search_title')} lamp={lampOf(cfg.indexers.some((i: Cfg) => has(i.api_key)))}>
     {#snippet help()}
-      <p>
-        Jackett interroge les sites de torrents pour trouver les films. Il est déjà installé sur le PC de la télé et
-        relié à REWIND : il reste à lui ajouter des sites avec <strong>Ouvrir Jackett</strong>, puis
-        <strong>+ Add indexer</strong>.
-      </p>
+      <p>{@html t('admin.lib.jackett_help')}</p>
     {/snippet}
     {#each cfg.indexers as ix, i (i)}
       <div class="item">
-        <label><span>Nom</span><input bind:value={ix.name} /></label>
-        <label><span>Adresse de Jackett</span><input bind:value={ix.url} autocapitalize="off" inputmode="url" /></label>
-        <Secret bind:value={ix.api_key} label="Clé API Jackett" />
+        <label><span>{t('admin.lib.name')}</span><input bind:value={ix.name} /></label>
+        <label><span>{t('admin.lib.jackett_url')}</span><input bind:value={ix.url} autocapitalize="off" inputmode="url" /></label>
+        <Secret bind:value={ix.api_key} label={t('admin.lib.jackett_key')} />
         <a class="open-jackett" href={phoneUrl(ix.url, location.hostname)} target="_blank" rel="noreferrer">
-          <Glyph name="external" /> Ouvrir Jackett (ajouter des sites)
+          <Glyph name="external" /> {t('admin.lib.jackett_open')}
         </a>
-        <Help label="Ajouter des sites dans Jackett">
+        <Help label={t('admin.lib.sites')}>
           <ol>
-            <li>Touchez <strong>Ouvrir Jackett</strong> ci-dessus (nouvel onglet).</li>
-            <li>Touchez <strong>+ Add indexer</strong>, cherchez un site, puis le <strong>+</strong> à côté.</li>
-            <li>Revenez ici et touchez <strong>Tester</strong> : il compte les sites ajoutés.</li>
+            <li>{@html t('admin.lib.sites1')}</li>
+            <li>{@html t('admin.lib.sites2')}</li>
+            <li>{@html t('admin.lib.sites3')}</li>
           </ol>
         </Help>
-        <Help label="Où trouver la clé Jackett ?">
+        <Help label={t('admin.lib.jkey_where')}>
           <ol>
             <li>
-              Ouvrez Jackett :
+              {t('admin.lib.jkey_where1')}
               <a href={phoneUrl(ix.url, location.hostname)} target="_blank" rel="noreferrer">{phoneUrl(ix.url, location.hostname)}</a>
-              (nouvel onglet).
+              {t('admin.lib.new_tab')}
             </li>
-            <li>La <strong>API Key</strong> est en haut à droite : copiez-la.</li>
-            <li>Ajoutez des sites avec <strong>+ Add indexer</strong> si la liste est vide.</li>
+            <li>{@html t('admin.lib.jkey_where2')}</li>
+            <li>{@html t('admin.lib.jkey_where3')}</li>
           </ol>
-          <p>
-            Avec le Jackett installé par REWIND, la clé est déjà remplie. Laissez l'adresse
-            <code>http://127.0.0.1:9117</code> : c'est celle du Jackett de la télé.
-          </p>
+          <p>{@html t('admin.lib.jkey_note')}</p>
         </Help>
-        <label><span>Relancer Jackett s'il s'arrête</span><input bind:value={ix.systemd_unit} placeholder="jackett.service" autocapitalize="off" /></label>
-        <Help label="À quoi ça sert ?">
-          <p>
-            Si Jackett ne répond plus, REWIND le relance tout seul avec ce service. Laissez <code>jackett.service</code>
-            sauf installation particulière ; videz le champ pour ne jamais le relancer.
-          </p>
+        <label><span>{t('admin.lib.unit')}</span><input bind:value={ix.systemd_unit} placeholder="jackett.service" autocapitalize="off" /></label>
+        <Help label={t('admin.lib.what_for')}>
+          <p>{@html t('admin.lib.unit_help')}</p>
         </Help>
         <TestButton run={() => adminApi.check('indexer', cfg, i)} />
-        <button class="danger" onclick={() => cfg.indexers.splice(i, 1)}>Retirer</button>
+        <button class="danger" onclick={() => cfg.indexers.splice(i, 1)}>{t('admin.lib.remove')}</button>
       </div>
     {/each}
-    <button onclick={addIndexer}>+ Ajouter Jackett</button>
+    <button onclick={addIndexer}>+ {t('admin.lib.add_jackett')}</button>
   </Window>
 
   <Window title="Movie Advisor" lamp={lampOf(cfg.advisor.some((p: Cfg) => has(p.api_key) || !presetOf(p)?.keyUrl))}>
     {#snippet help()}
-      <p>
-        Le Movie Advisor propose trois films selon vos envies, grâce à une intelligence artificielle. Ajoutez un ou
-        plusieurs fournisseurs : si le premier ne répond pas, REWIND essaie le suivant (dans l'ordre de la liste).
-      </p>
-      <p>Le plus simple : <strong>Gemini</strong> (gratuit avec un compte Google) ou <strong>Groq</strong>.</p>
+      <p>{t('admin.lib.adv_help1')}</p>
+      <p>{@html t('admin.lib.adv_help2')}</p>
     {/snippet}
     {#each cfg.advisor as p, i (i)}
       {@const preset = presetOf(p)}
       <div class="item">
         <div class="row">
           <strong class="grow">{i + 1}. {p.name}</strong>
-          <button class="danger" onclick={() => cfg.advisor.splice(i, 1)}>Retirer</button>
+          <button class="danger" onclick={() => cfg.advisor.splice(i, 1)}>{t('admin.lib.remove')}</button>
         </div>
-        {#if preset}<p class="muted">{preset.note}</p>{/if}
+        {#if preset}<p class="muted">{t(preset.note)}</p>{/if}
         {#if !preset || preset.keyUrl}
-          <Secret bind:value={p.api_key} label="Clé API" />
+          <Secret bind:value={p.api_key} label={t('admin.lib.api_key')} />
         {/if}
         {#if preset?.keyUrl}
-          <Help label="Où trouver ma clé {preset.name} ?">
+          <Help label={t('admin.lib.key_where', { name: preset.name })}>
             <ol>
-              <li>Ouvrez <a href={preset.keyUrl} target="_blank" rel="noreferrer">{preset.keyUrl.replace('https://', '')}</a> et connectez-vous (ou créez un compte).</li>
-              <li>Créez une clé (« Create API key ») et copiez-la ici.</li>
-              <li>Touchez <strong>Tester</strong> pour vérifier.</li>
+              <li>{t('admin.lib.key_where1a')} <a href={preset.keyUrl} target="_blank" rel="noreferrer">{preset.keyUrl.replace('https://', '')}</a> {t('admin.lib.key_where1b')}</li>
+              <li>{t('admin.lib.key_where2')}</li>
+              <li>{@html t('admin.lib.key_where3')}</li>
             </ol>
           </Help>
         {:else if preset}
-          <Help label="Comment installer Ollama ?">
-            <p>
-              Ollama fait tourner un modèle sur votre ordinateur, sans compte ni clé. Installez-le depuis
-              <a href="https://ollama.com" target="_blank" rel="noreferrer">ollama.com</a>, puis téléchargez un modèle
-              (<code>ollama pull llama3.2</code>). Sur le PC de la télé, laissez l'adresse telle quelle.
-            </p>
+          <Help label={t('admin.lib.ollama')}>
+            <p>{@html t('admin.lib.ollama_help')}</p>
           </Help>
         {/if}
         {#if !preset}
-          <label><span>Adresse de l'API</span><input bind:value={p.base_url} autocapitalize="off" inputmode="url" /></label>
+          <label><span>{t('admin.lib.api_url')}</span><input bind:value={p.base_url} autocapitalize="off" inputmode="url" /></label>
         {/if}
         <label>
-          <span>Modèle</span>
+          <span>{t('admin.lib.model')}</span>
           {#if models[i]?.length}
             <select bind:value={p.model}>
               {#if !models[i].includes(p.model)}<option value={p.model}>{p.model}</option>{/if}
@@ -253,19 +233,19 @@
         </label>
         <div class="row">
           <button onclick={() => loadModels(i)} disabled={loadingModels === i}>
-            {#if loadingModels === i}Chargement…{:else}<Glyph name="refresh" /> Liste des modèles{/if}
+            {#if loadingModels === i}{t('series.loading')}{:else}<Glyph name="refresh" /> {t('admin.lib.models')}{/if}
           </button>
           {#if modelError[i]}<span class="bad">{modelError[i]}</span>{/if}
         </div>
         <TestButton run={() => adminApi.check('advisor', cfg, i)} />
       </div>
     {/each}
-    <span class="label">Ajouter un fournisseur</span>
+    <span class="label">{t('admin.lib.add_provider')}</span>
     <div class="presets">
       {#each PROVIDERS as pr (pr.id)}
-        <button onclick={() => addAdvisor(pr)}><strong>+ {pr.name}</strong><small>{pr.note}</small></button>
+        <button onclick={() => addAdvisor(pr)}><strong>+ {pr.name}</strong><small>{t(pr.note)}</small></button>
       {/each}
-      <button onclick={addCustom}><strong>+ Autre</strong><small>Toute API compatible OpenAI</small></button>
+      <button onclick={addCustom}><strong>+ {t('admin.lib.other')}</strong><small>{t('admin.lib.other_hint')}</small></button>
     </div>
   </Window>
 {/if}

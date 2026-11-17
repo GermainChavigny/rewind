@@ -6,7 +6,8 @@
   import Glyph from '../../components/Glyph.svelte';
   import { onDestroy } from 'svelte';
   import { adminApi, type Cfg } from '../api';
-  import { ACTION_GROUPS, keyLabel } from '../helpers';
+  import { t } from '../../lib/i18n';
+  import { actionGroups, keyLabel } from '../helpers';
   import Progress from '../ui/Progress.svelte';
   import Window from '../ui/Window.svelte';
 
@@ -17,7 +18,8 @@
   let left = $state(LEARN_S);
   let result = $state<{ ok: boolean; text: string } | null>(null);
   let timer: ReturnType<typeof setInterval> | undefined;
-  let openGroup = $state<string | null>('Chaînes');
+  let openGroup = $state<string | null>('channels');
+  const groups = $derived(actionGroups());
 
   async function learn(id: string, label: string) {
     if (learning) return;
@@ -38,10 +40,10 @@
       if (state.key) {
         const keys: string[] = cfg.remote.keys[id] ?? [];
         cfg.remote.keys[id] = [state.key, ...keys.filter((k) => k !== state.key)];
-        result = { ok: true, text: `Touche « ${keyLabel(state.key)} » ajoutée à « ${label} ».` };
+        result = { ok: true, text: t('admin.learn.added', { key: keyLabel(state.key), action: label }) };
         stop();
       } else if (!state.waiting) {
-        result = { ok: false, text: 'Aucune touche reçue. La télé est-elle allumée sur REWIND ?' };
+        result = { ok: false, text: t('admin.learn.none') };
         stop();
       }
     }, 500);
@@ -60,29 +62,26 @@
   onDestroy(() => learning && stop());
 </script>
 
-<Window title="Les touches">
+<Window title={t('admin.learn.title')}>
   {#snippet help()}
-    <p>Apprenez à REWIND les touches de votre télécommande :</p>
+    <p>{t('admin.learn.help')}</p>
     <ol>
-      <li>Allumez la télé sur REWIND.</li>
-      <li>Ici, touchez <strong>Apprendre</strong> à côté d'une action.</li>
-      <li>Dans les 30 secondes, appuyez sur la touche de la télécommande.</li>
+      <li>{t('admin.learn.help1')}</li>
+      <li>{@html t('admin.learn.help2')}</li>
+      <li>{t('admin.learn.help3')}</li>
     </ol>
-    <p>
-      Une action peut avoir plusieurs touches (par exemple « 1 » et « & » pour la chaîne 1). Touchez une touche pour
-      l'enlever. N'oubliez pas d'enregistrer à la fin.
-    </p>
+    <p>{t('admin.learn.help4')}</p>
   {/snippet}
 
   {#if result}<p class:ok={result.ok} class:bad={!result.ok}>{result.text}</p>{/if}
 
-  {#each ACTION_GROUPS as g (g.title)}
+  {#each groups as g (g.id)}
     <div class="group">
-      <button class="g-head" aria-expanded={openGroup === g.title} onclick={() => (openGroup = openGroup === g.title ? null : g.title)}>
-        <span><Glyph name={openGroup === g.title ? 'caret-down' : 'caret-right'} /> {g.title}</span>
+      <button class="g-head" aria-expanded={openGroup === g.id} onclick={() => (openGroup = openGroup === g.id ? null : g.id)}>
+        <span><Glyph name={openGroup === g.id ? 'caret-down' : 'caret-right'} /> {g.title}</span>
         <small>{g.actions.filter((a) => (cfg.remote.keys[a.id] ?? []).length).length}/{g.actions.length}</small>
       </button>
-      {#if openGroup === g.title}
+      {#if openGroup === g.id}
         {#each g.actions as a (a.id)}
           {@const keys = cfg.remote.keys[a.id] ?? []}
           <div class="action">
@@ -92,11 +91,11 @@
             </div>
             <div class="keys">
               {#each keys as key (key)}
-                <button class="key" onclick={() => removeKey(a.id, key)} aria-label="Enlever {keyLabel(key)}">
+                <button class="key" onclick={() => removeKey(a.id, key)} aria-label={t('admin.learn.remove', { key: keyLabel(key) })}>
                   {keyLabel(key)} <span>×</span>
                 </button>
               {/each}
-              <button class="learn" onclick={() => learn(a.id, a.label)} disabled={!!learning}>+ Apprendre</button>
+              <button class="learn" onclick={() => learn(a.id, a.label)} disabled={!!learning}>+ {t('admin.learn.learn')}</button>
             </div>
           </div>
         {/each}
@@ -106,12 +105,12 @@
 </Window>
 
 {#if learning}
-  <div class="modal" role="dialog" aria-modal="true" aria-label="Apprentissage">
-    <Window title="Apprentissage">
-      <p class="big">Appuyez sur la touche<br /><strong>« {learning.label} »</strong><br />de la télécommande…</p>
+  <div class="modal" role="dialog" aria-modal="true" aria-label={t('admin.learn.learning')}>
+    <Window title={t('admin.learn.learning')}>
+      <p class="big">{t('admin.learn.press')}<br /><strong>« {learning.label} »</strong><br />{t('admin.learn.press2')}</p>
       <Progress value={left / LEARN_S} />
       <p class="muted center">{Math.ceil(left)} s</p>
-      <div class="row end"><button onclick={stop}>Annuler</button></div>
+      <div class="row end"><button onclick={stop}>{t('nav.cancel')}</button></div>
     </Window>
   </div>
 {/if}

@@ -68,7 +68,7 @@ def test_check_uses_typed_values_and_stored_secrets(make_client, web):
     web.routes["https://api.themoviedb.org/3/configuration"] = httpx.Response(401)
     draft["tmdb"]["api_key"] = "typed"
     res = client.post("/api/admin/check", json={"service": "tmdb", "config": draft}).json()
-    assert res["ok"] is False and "refusée" in res["message"]
+    assert res["ok"] is False and "refused" in res["message"]
     assert "api_key=typed" in str(web.calls[-1].url)
 
 
