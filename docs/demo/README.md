@@ -13,7 +13,7 @@ captures use the system one (`CHROMIUM`).
 ```bash
 cd docs/demo
 npm install
-npm run prepare-assets      # copies the music, cursors and chime, downloads the font
+npm run prepare-assets      # copies the music, cursors and chime, downloads the font (any OS)
 npm run studio              # live preview in the browser, scrub the timeline
 npm run preview             # half-size render, quick check → out/preview.mp4
 npm run render              # final render → out/rewind-demo.mp4

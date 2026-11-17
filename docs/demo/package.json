@@ -4,7 +4,7 @@
   "description": "README demo video of REWIND, made with Remotion (see README.md here).",
   "type": "module",
   "scripts": {
-    "prepare-assets": "mkdir -p public/fonts public/cursors public/sfx && cp ../../assets/background.mp3 public/ && cp ../../frontend/public/cursors/*.png public/cursors/ && cp ../../frontend/public/audio/chimes/bells.mp3 public/sfx/ && (test -f public/fonts/vcr-osd-mono.ttf || (wget -qO /tmp/vcr.zip 'https://dl.dafont.com/dl/?f=vcr_osd_mono' && unzip -p /tmp/vcr.zip '*.ttf' > public/fonts/vcr-osd-mono.ttf))",
+    "prepare-assets": "node scripts/prepare-assets.mjs",
     "capture": "node scripts/capture.mjs",
     "studio": "remotion studio src/index.ts",
     "render": "remotion render src/index.ts Demo out/rewind-demo.mp4 --crf=26",
