@@ -6,123 +6,52 @@ https://github.com/user-attachments/assets/8a585d3a-4aed-4e04-8cc1-e0c6815250c5
 
 # REWIND
 
-> An 80s/90s TV experience for your mini PC: channels, a movie and series
-> library, alarm clock, weather… dressed up like a real channel of the era.
+> Turn a mini PC and an old TV into a channel straight out of the 80s/90s.
 
-**🚧 Work in progress (v2)** — see the [roadmap](docs/roadmap.md).
+<!-- Demo video: edit this README on github.com and drag docs/demo/out/github-demo.mp4 here. -->
 
-The user interface is in French for now; it is built for translation (i18n).
+## What it does
 
-## Principles
+- 📺 **Your own channels** — YouTube playlists become TV channels you zap
+  through like in 1993.
+- 🎬 **Movies & series** — downloaded, subtitled, and resumed where you
+  stopped.
+- 🤖 **AI movie advisor** — tell it your mood, it picks three films for
+  tonight.
+- 📱 **Your phone is the remote** — or plug in any USB remote: REWIND learns
+  its keys.
+- ⏰ **Wakes you up** — gently: a chime, then your favorite channel.
+- 🌦️ **Local forecast** — with the Weather Channel look.
+- 🔌 **Turns the TV on and off** — with a smart plug, if you have one.
+- ⚙️ **Set up from your phone** — no keyboard needed. Each feature only shows
+  up once you've configured it.
 
-- **CRT first**: a 4:3 interface at 720×576, readable from the couch. Works on
-  HD screens too (4:3 pillarboxed UI, 16:9 movies full screen).
-- **Easy to install**: Debian + one command, then everything is configured from
-  a phone (`http://tv.local`).
-- **Modular**: each feature (YouTube channels, movies, series, alarm, weather,
-  smart plug…) only shows up once it is configured.
+Made for a real CRT (4:3, readable from the couch), but works just as well on
+a flat screen.
 
-## Installation
+## Install
 
-On a mini PC with **Debian 13** (amd64) or a **Raspberry Pi 4/5** with
-**Raspberry Pi OS Lite 64-bit**, plugged into the TV and connected to the
-network, log in as the user who will own the TV and run:
+On a mini PC with **Debian 13** or a **Raspberry Pi 4/5** (Raspberry Pi OS
+Lite 64-bit), plugged into the TV:
 
 ```bash
 wget -qO- https://github.com/GermainChavigny/rewind/releases/latest/download/install.sh | bash
 ```
 
-(or `curl -fsSL <same URL> | bash`). It asks for your password once (sudo),
-installs what it needs (cage, Chromium, ffmpeg…) and REWIND in `/opt/rewind`.
-Then reboot: the TV starts on REWIND and shows a QR code. Scan it with your
-phone to finish the setup (`http://<tv-ip>:8080/admin/`).
+Reboot: the TV shows a QR code. Scan it with your phone and follow the setup.
 
-No sudo on this user? Run it as root with `bash -s -- --user <name>`.
+Updates are one tap away on the phone (**Settings → Update**).
+To remove it: `/opt/rewind/install.sh uninstall`.
 
-### Updates
-
-From the phone: **Réglages → Mise à jour**. Or on the TV computer:
+## Hacking on it
 
 ```bash
-/opt/rewind/install.sh update       # latest release
-/opt/rewind/install.sh rollback     # back to the previous one
+(cd backend && uv sync && uv run rewind serve)     # API on :8080
+(cd frontend && npm install && npm run dev)        # TV interface on :5173
 ```
 
-Updates never touch your settings and library (`~/.config/rewind`,
-`~/.local/share/rewind`). An update that needs new system packages asks you to
-run `/opt/rewind/install.sh update` yourself on the TV (sudo).
-
-### What it sets up
-
-- `rewind.service`: the backend, a systemd **user** service on port 8080.
-- `rewind-kiosk.service`: cage + Chromium on tty1, in place of the login
-  prompt (other consoles: Ctrl+Alt+F2).
-- [Jackett](https://github.com/Jackett/Jackett) (`jackett.service`, user
-  service on port 9117), already connected to REWIND: to search movies, add
-  sites from the phone (**Films et séries → Ouvrir Jackett**). A Jackett that
-  is already there is reused.
-- uBlock Origin Lite for the YouTube channels, a polkit rule so the phone's
-  power key can turn the computer off, and `rewind` in `/usr/local/bin`.
-
-Options (after `bash -s --`): `--kiosk service|none`, `--port N`,
-`--no-ublock`, `--no-jackett`, `--version X.Y.Z`, `--from rewind.tar.gz`.
-
-### Uninstall
-
-```bash
-/opt/rewind/install.sh uninstall            # keeps settings and library
-/opt/rewind/install.sh uninstall --purge    # removes them too
-```
-
-## Development
-
-Requirements: [uv](https://docs.astral.sh/uv/) (Python 3.11+) — Linux or macOS.
-
-```bash
-cd backend
-uv sync
-uv run pytest
-# from the repo root, everything the CI checks: scripts/check.sh
-uv run rewind serve          # http://localhost:8080/api/health
-```
-
-And the TV interface (Node 20.19+):
-
-```bash
-cd frontend
-npm install
-npm run dev                  # http://localhost:5173 (proxies /api to :8080)
-npm run build                # dist/ is then served by `rewind serve` on :8080
-```
-
-No hardware needed: set `[power] provider = "fake"` in `config.toml`.
-
-### Releases
-
-Bump the version in `backend/src/rewind/__init__.py` and
-`backend/pyproject.toml`, commit, then `scripts/release.sh`: it runs the
-checks, builds `dist/rewind.tar.gz` (UI, wheel, hashed requirements, deploy
-files: one archive for amd64 and arm64) and publishes it with `install.sh` as
-a GitHub release. `scripts/build-release.sh` only builds.
-
-### Sandbox (try the UI from any browser)
-
-```bash
-deploy/dev/setup-sandbox     # → http://<tv-ip>:8081
-```
-
-A second v2 instance with its own copy of the data and a **fake TV plug**, so
-keys pressed in the browser never switch the real TV. Runs as a systemd user
-service, even while the TV runs v1. Re-run to rebuild the UI and refresh data.
-End-to-end checks against it: `deploy/dev/e2e/*.py` (Playwright).
-
-### Migrating from v1
-
-```bash
-uv run rewind import-v1 --tv-data ~/tv_data --movies ~/movies
-```
-
-Never modifies v1: data is copied and videos are hardlinked. Safe to re-run.
+Set `[power] provider = "fake"` in `config.toml` if you don't have a smart
+plug. The demo video lives in [docs/demo](docs/demo).
 
 ## License
 
