@@ -8,8 +8,6 @@ https://github.com/user-attachments/assets/8a585d3a-4aed-4e04-8cc1-e0c6815250c5
 
 > Turn a mini PC and an old TV into a channel straight out of the 80s/90s.
 
-<!-- Demo video: edit this README on github.com and drag docs/demo/out/github-demo.mp4 here. -->
-
 ## What it does
 
 - 📺 **Your own channels** — YouTube playlists become TV channels you zap
